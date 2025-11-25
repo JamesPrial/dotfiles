@@ -1,0 +1,16 @@
+# Claude Stuff
+history.*
+.anthropic/
+debug/
+downloads/
+todos/
+file-history/
+ide/
+local/
+projects/
+session-env/
+shell-snapshots/
+statsig/
+
+# Everything Else
+.DS_Store
