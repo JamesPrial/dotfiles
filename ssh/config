@@ -1,0 +1,17 @@
+Host unraid
+  HostName 10.11.12.70
+  User root
+  Port 2234
+
+Host cb
+  HostName 10.11.12.89
+  User james
+
+Host pc
+  HostName 10.11.12.225
+  User james
+
+Host *
+  AddKeysToAgent yes
+  UseKeychain yes
+  IdentityFile ~/.ssh/id_ed25519
