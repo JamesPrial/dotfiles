@@ -11,11 +11,11 @@ Host pc
   HostName 10.11.12.225
   User james
 
-Host mac
-  HostName 10.11.12.204
-  User jamesprial
+Host gitlab
+  HostName 10.11.12.159
+  User james
+  Port 51280
 
 Host *
   AddKeysToAgent yes
-  UseKeychain yes
   IdentityFile ~/.ssh/id_ed25519
