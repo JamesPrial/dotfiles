@@ -5,8 +5,13 @@ export PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
 export PATH="$HOME/.local/bin:$PATH"
 
 # Aliases
-alias ls='ls --color=auto'
-alias ll='ls -lah --color=auto'
+if [[ "$(uname)" == "Darwin" ]]; then
+    alias ls='ls -G'
+    alias ll='ls -lahG'
+else
+    alias ls='ls --color=auto'
+    alias ll='ls -lah --color=auto'
+fi
 alias grep='grep --color=auto'
 alias ec="$EDITOR $HOME/.zshrc" # edit .zshrc
 alias sc="source $HOME/.zshrc"  # reload zsh configuration
@@ -38,8 +43,13 @@ zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
 
 # zplug - manage plugins
-source /usr/share/zplug/init.zsh
-zplug "plugins/sudo", from:oh-my-zsh
+if [[ "$(uname)" == "Darwin" ]]; then
+    export ZPLUG_HOME=/opt/homebrew/opt/zplug
+    source $ZPLUG_HOME/init.zsh
+else
+    source /usr/share/zplug/init.zsh
+fi
+zplug "hcgraf/zsh-sudo"
 zplug "plugins/command-not-found", from:oh-my-zsh
 zplug "zsh-users/zsh-syntax-highlighting"
 zplug "zsh-users/zsh-autosuggestions"
@@ -57,8 +67,12 @@ fi
 zplug load
 
 # fzf key bindings and completion
-[ -f /usr/share/doc/fzf/examples/key-bindings.zsh ] && source /usr/share/doc/fzf/examples/key-bindings.zsh
-[ -f /usr/share/doc/fzf/examples/completion.zsh ] && source /usr/share/doc/fzf/examples/completion.zsh
+if [[ "$(uname)" == "Darwin" ]]; then
+    [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
+else
+    [ -f /usr/share/doc/fzf/examples/key-bindings.zsh ] && source /usr/share/doc/fzf/examples/key-bindings.zsh
+    [ -f /usr/share/doc/fzf/examples/completion.zsh ] && source /usr/share/doc/fzf/examples/completion.zsh
+fi
 
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
