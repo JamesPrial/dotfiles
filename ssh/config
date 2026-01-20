@@ -16,6 +16,11 @@ Host gitlab
   User james
   Port 51280
 
+Host edge
+  HostName painbonanaza.com
+  User james
+  Port 55900
+
 Host *
   AddKeysToAgent yes
   IdentityFile ~/.ssh/id_ed25519
