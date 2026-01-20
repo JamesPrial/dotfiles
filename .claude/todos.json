@@ -1,0 +1,159 @@
+[
+  {
+    "timestamp": "2026-01-20T16:34:26.246Z",
+    "session_id": "ad2b908e-a406-471e-938b-2d0d03cc6c5f",
+    "cwd": "/var/local/code/dotfiles",
+    "todos": [
+      {
+        "content": "Create install.sh with script header and configuration",
+        "status": "in_progress",
+        "activeForm": "Creating install.sh with script header and configuration"
+      },
+      {
+        "content": "Add logging and utility functions",
+        "status": "pending",
+        "activeForm": "Adding logging and utility functions"
+      },
+      {
+        "content": "Add platform detection function",
+        "status": "pending",
+        "activeForm": "Adding platform detection function"
+      },
+      {
+        "content": "Add dependency installation functions (zsh, zplug, fzf, nvm, go)",
+        "status": "pending",
+        "activeForm": "Adding dependency installation functions"
+      },
+      {
+        "content": "Add repo cloning function",
+        "status": "pending",
+        "activeForm": "Adding repo cloning function"
+      },
+      {
+        "content": "Add symlink setup function",
+        "status": "pending",
+        "activeForm": "Adding symlink setup function"
+      },
+      {
+        "content": "Add shell switching function",
+        "status": "pending",
+        "activeForm": "Adding shell switching function"
+      },
+      {
+        "content": "Add main execution flow and post-install summary",
+        "status": "pending",
+        "activeForm": "Adding main execution flow and post-install summary"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-20T16:35:20.847Z",
+    "session_id": "ad2b908e-a406-471e-938b-2d0d03cc6c5f",
+    "cwd": "/var/local/code/dotfiles",
+    "todos": [
+      {
+        "content": "Create install.sh with script header and configuration",
+        "status": "completed",
+        "activeForm": "Creating install.sh with script header and configuration"
+      },
+      {
+        "content": "Add logging and utility functions",
+        "status": "completed",
+        "activeForm": "Adding logging and utility functions"
+      },
+      {
+        "content": "Add platform detection function",
+        "status": "completed",
+        "activeForm": "Adding platform detection function"
+      },
+      {
+        "content": "Add dependency installation functions (zsh, zplug, fzf, nvm, go)",
+        "status": "completed",
+        "activeForm": "Adding dependency installation functions"
+      },
+      {
+        "content": "Add repo cloning function",
+        "status": "completed",
+        "activeForm": "Adding repo cloning function"
+      },
+      {
+        "content": "Add symlink setup function",
+        "status": "completed",
+        "activeForm": "Adding symlink setup function"
+      },
+      {
+        "content": "Add shell switching function",
+        "status": "completed",
+        "activeForm": "Adding shell switching function"
+      },
+      {
+        "content": "Add main execution flow and post-install summary",
+        "status": "completed",
+        "activeForm": "Adding main execution flow and post-install summary"
+      },
+      {
+        "content": "Make script executable",
+        "status": "in_progress",
+        "activeForm": "Making script executable"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-20T16:35:30.997Z",
+    "session_id": "ad2b908e-a406-471e-938b-2d0d03cc6c5f",
+    "cwd": "/var/local/code/dotfiles",
+    "todos": [
+      {
+        "content": "Create install.sh with script header and configuration",
+        "status": "completed",
+        "activeForm": "Creating install.sh with script header and configuration"
+      },
+      {
+        "content": "Add logging and utility functions",
+        "status": "completed",
+        "activeForm": "Adding logging and utility functions"
+      },
+      {
+        "content": "Add platform detection function",
+        "status": "completed",
+        "activeForm": "Adding platform detection function"
+      },
+      {
+        "content": "Add dependency installation functions (zsh, zplug, fzf, nvm, go)",
+        "status": "completed",
+        "activeForm": "Adding dependency installation functions"
+      },
+      {
+        "content": "Add repo cloning function",
+        "status": "completed",
+        "activeForm": "Adding repo cloning function"
+      },
+      {
+        "content": "Add symlink setup function",
+        "status": "completed",
+        "activeForm": "Adding symlink setup function"
+      },
+      {
+        "content": "Add shell switching function",
+        "status": "completed",
+        "activeForm": "Adding shell switching function"
+      },
+      {
+        "content": "Add main execution flow and post-install summary",
+        "status": "completed",
+        "activeForm": "Adding main execution flow and post-install summary"
+      },
+      {
+        "content": "Make script executable",
+        "status": "completed",
+        "activeForm": "Making script executable"
+      }
+    ]
+  },
+  {
+    "timestamp": "2026-01-20T16:43:07.265Z",
+    "session_id": "ad2b908e-a406-471e-938b-2d0d03cc6c5f",
+    "cwd": "/var/local/code/dotfiles",
+    "todos": []
+  }
+]
