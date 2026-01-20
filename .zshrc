@@ -1,6 +1,7 @@
 # Set path if required
 export PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
 
+export PATH="$HOME/.nvm/versions/node/v25.4.0/bin:$PATH"
 
 export PATH="$HOME/.local/bin:$PATH"
 
