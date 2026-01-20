@@ -1,6 +1,6 @@
 #!/bin/sh
 # Dotfiles Bootstrap Script
-# Usage: curl -fsSL https://raw.githubusercontent.com/JamesPrial/dotfiles/main/install.sh | sh
+# Usage: curl -fsSL https://raw.githubusercontent.com/JamesPrial/dotfiles/main/.dotfiles/install.sh | sh
 #
 # This script is safe to run multiple times (idempotent)
 
@@ -324,10 +324,13 @@ setup_symlinks() {
     log_info "Setting up symlinks..."
 
     # Main .zshrc symlink
-    create_symlink "$DOTFILES_DIR/.zshrc" "$HOME/.zshrc"
+    create_symlink "$DOTFILES_DIR/.dotfiles/.zshrc" "$HOME/.zshrc"
+
+    # Bash aliases
+    create_symlink "$DOTFILES_DIR/.dotfiles/.bash_aliases" "$HOME/.bash_aliases"
 
     # SSH config
-    if [ -f "$DOTFILES_DIR/ssh/config" ]; then
+    if [ -f "$DOTFILES_DIR/.dotfiles/ssh/config" ]; then
         # Ensure ~/.ssh exists with proper permissions
         if [ ! -d "$HOME/.ssh" ]; then
             mkdir -p "$HOME/.ssh"
@@ -335,13 +338,68 @@ setup_symlinks() {
             log_info "Created ~/.ssh directory"
         fi
 
-        create_symlink "$DOTFILES_DIR/ssh/config" "$HOME/.ssh/config"
+        create_symlink "$DOTFILES_DIR/.dotfiles/ssh/config" "$HOME/.ssh/config"
 
         # Ensure proper permissions on ssh config
         chmod 600 "$HOME/.ssh/config" 2>/dev/null || true
     fi
 
     # NOTE: We do NOT symlink ssh/id_ed25519 - it's a placeholder
+}
+
+# Set up git hooks to fix permissions after pulls
+setup_hooks() {
+    log_info "Setting up git hooks..."
+
+    hooks_dir="$DOTFILES_DIR/.git/hooks"
+
+    # Create post-merge hook
+    cat > "$hooks_dir/post-merge" << 'EOF'
+#!/bin/sh
+"$HOME/code/dotfiles/.dotfiles/fix-perms.sh"
+EOF
+    chmod +x "$hooks_dir/post-merge"
+
+    # Create post-checkout hook
+    cat > "$hooks_dir/post-checkout" << 'EOF'
+#!/bin/sh
+"$HOME/code/dotfiles/.dotfiles/fix-perms.sh"
+EOF
+    chmod +x "$hooks_dir/post-checkout"
+
+    log_success "Git hooks installed"
+
+    # Run fix-perms now
+    if [ -x "$DOTFILES_DIR/.dotfiles/fix-perms.sh" ]; then
+        "$DOTFILES_DIR/.dotfiles/fix-perms.sh"
+        log_success "Permissions fixed"
+    fi
+}
+
+# Set up cron job for startup sync (optional)
+setup_cron() {
+    log_info "Checking cron setup..."
+
+    cron_entry="@reboot $DOTFILES_DIR/.dotfiles/sync.sh"
+
+    # Check if already set up
+    if crontab -l 2>/dev/null | grep -q "sync.sh"; then
+        log_success "Cron job already configured"
+        return 0
+    fi
+
+    # Ask user if they want cron
+    printf "${YELLOW}Would you like to sync dotfiles on startup? [y/N] ${NC}"
+    read -r response
+    case "$response" in
+        [yY][eE][sS]|[yY])
+            (crontab -l 2>/dev/null || true; echo "$cron_entry") | crontab -
+            log_success "Cron job added for startup sync"
+            ;;
+        *)
+            log_info "Skipping cron setup"
+            ;;
+    esac
 }
 
 # Switch default shell to zsh
@@ -392,7 +450,9 @@ post_install() {
     echo "What was set up:"
     echo "  - Dotfiles cloned to: $DOTFILES_DIR"
     echo "  - Symlinked: ~/.zshrc"
+    echo "  - Symlinked: ~/.bash_aliases"
     [ -L "$HOME/.ssh/config" ] && echo "  - Symlinked: ~/.ssh/config"
+    echo "  - Git hooks: permissions auto-fix on pull"
     echo ""
     echo "Installed:"
     command_exists zsh && echo "  - zsh: $(zsh --version 2>&1 | head -1)"
@@ -433,7 +493,9 @@ main() {
     install_dependencies
     clone_repo
     setup_symlinks
+    setup_hooks
     switch_to_zsh
+    setup_cron
     post_install
 }
 

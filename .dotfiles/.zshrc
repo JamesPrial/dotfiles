@@ -5,20 +5,8 @@ export PATH="$HOME/.nvm/versions/node/v25.4.0/bin:$PATH"
 
 export PATH="$HOME/.local/bin:$PATH"
 
-# Aliases
-if [[ "$(uname)" == "Darwin" ]]; then
-    alias ls='ls -G'
-    alias ll='ls -lahG'
-else
-    alias ls='ls --color=auto'
-    alias ll='ls -lah --color=auto'
-fi
-alias grep='grep --color=auto'
-alias ec="$EDITOR $HOME/.zshrc" # edit .zshrc
-alias sc="source $HOME/.zshrc"  # reload zsh configuration
-alias tree='nocorrect tree'
-alias shawn="(cd $HOME/code/shawnbot && npm install && npm start)"
-alias venv="python3 -m venv .venv && source .venv/bin/activate"
+# Load aliases
+[ -f ~/.bash_aliases ] && source ~/.bash_aliases
 
 # Use emacs keybindings even if our EDITOR is set to vi
 bindkey -e
