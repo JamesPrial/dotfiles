@@ -5,6 +5,9 @@ export PATH="$HOME/.nvm/versions/node/v25.4.0/bin:$PATH"
 
 export PATH="$HOME/.local/bin:$PATH"
 
+# Dotfiles scripts
+export PATH="$HOME/code/dotfiles/.dotfiles:$PATH"
+
 # Load aliases
 [ -f ~/.bash_aliases ] && source ~/.bash_aliases
 
