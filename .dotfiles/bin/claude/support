@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# push - commit and push changes using Claude Code
+claude --model opus \
+  --allowedTools Bash,Read,Write,websearch \
+  --append-system-prompt "You are an expert in Bash commands and Scripts, as well as extensive privileges. You are running on Debian 13, in zsh. The User will either prompt you with a question, or use you write short bash scripts. if its just a question, answer it. if its debugging something, search for and solve the issue, if possible." \
+  -p "$1"
