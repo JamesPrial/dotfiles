@@ -11,11 +11,10 @@ chmod 700 "$DF/ssh" 2>/dev/null
 chmod 700 "$DF/fix-perms.sh" 2>/dev/null
 chmod 700 "$DF/install.sh" 2>/dev/null
 chmod 700 "$DF/sync.sh" 2>/dev/null
-chmod 700 "$DF/cdir" 2>/dev/null
-
 # Config files: 600
 chmod 600 "$DF/.zshrc" 2>/dev/null
 chmod 600 "$DF/.bash_aliases" 2>/dev/null
+chmod 600 "$DF/.sh_functions" 2>/dev/null
 chmod 600 "$DF/ssh/config" 2>/dev/null
 chmod 600 "$DF/ssh/id_ed25519" 2>/dev/null
 

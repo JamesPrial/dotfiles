@@ -8,8 +8,9 @@ export PATH="$HOME/.local/bin:$PATH"
 # Dotfiles scripts
 export PATH="$HOME/code/dotfiles/.dotfiles:$PATH"
 
-# Load aliases
+# Load aliases and functions
 [ -f ~/.bash_aliases ] && source ~/.bash_aliases
+[ -f ~/.sh_functions ] && source ~/.sh_functions
 
 # Use emacs keybindings even if our EDITOR is set to vi
 bindkey -e

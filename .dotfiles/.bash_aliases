@@ -16,13 +16,4 @@ alias shawn="(cd $HOME/code/shawnbot && npm install && npm start)"
 alias mkvenv="python3 -m venv .venv"
 alias venv='[ -d .venv ] || mkvenv; source .venv/bin/activate'
 
-# cdir - create directory with optional permissions and cd into it
-cdir() {
-    if [ -z "$1" ]; then
-        echo "Usage: cdir <directory> [permissions]" >&2
-        return 1
-    fi
-    mkdir -p "$1" || return 1
-    [ -n "$2" ] && chmod "$2" "$1"
-    cd "$1"
-}
+alias push='claude --dangerously-skip-permissions --model haiku -p "commit and push all changes in the repository"'

@@ -329,6 +329,9 @@ setup_symlinks() {
     # Bash aliases
     create_symlink "$DOTFILES_DIR/.dotfiles/.bash_aliases" "$HOME/.bash_aliases"
 
+    # Shell functions
+    create_symlink "$DOTFILES_DIR/.dotfiles/.sh_functions" "$HOME/.sh_functions"
+
     # SSH config
     if [ -f "$DOTFILES_DIR/.dotfiles/ssh/config" ]; then
         # Ensure ~/.ssh exists with proper permissions
