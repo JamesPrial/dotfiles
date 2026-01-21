@@ -1717,5 +1717,42 @@
         "activeForm": "Committing and pushing changes"
       }
     ]
+  },
+  {
+    "timestamp": "2026-01-21T20:35:05.639Z",
+    "session_id": "bafbc14c-3364-4d43-b82c-9a86e0dcbcfa",
+    "cwd": "/Users/jamesprial/code/dotfiles",
+    "todos": [
+      {
+        "content": "Stash local .zshrc changes",
+        "status": "completed",
+        "activeForm": "Stashing local .zshrc changes"
+      },
+      {
+        "content": "Pull 22 commits from remote",
+        "status": "completed",
+        "activeForm": "Pulling commits from remote"
+      },
+      {
+        "content": "Merge todos.json files",
+        "status": "completed",
+        "activeForm": "Merging todos.json files"
+      },
+      {
+        "content": "Pop stash and check for conflicts",
+        "status": "completed",
+        "activeForm": "Popping stash and checking for conflicts"
+      },
+      {
+        "content": "Resolve conflicts in .zshrc",
+        "status": "completed",
+        "activeForm": "Resolving conflicts in .zshrc"
+      },
+      {
+        "content": "Commit and push changes",
+        "status": "completed",
+        "activeForm": "Committing and pushing changes"
+      }
+    ]
   }
 ]
