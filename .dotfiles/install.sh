@@ -347,6 +347,15 @@ setup_symlinks() {
         chmod 600 "$HOME/.ssh/config" 2>/dev/null || true
     fi
 
+    # Neovim config
+    if [ -d "$DOTFILES_DIR/.dotfiles/nvim" ]; then
+        if [ ! -d "$HOME/.config" ]; then
+            mkdir -p "$HOME/.config"
+            log_info "Created ~/.config directory"
+        fi
+        create_symlink "$DOTFILES_DIR/.dotfiles/nvim" "$HOME/.config/nvim"
+    fi
+
     # NOTE: We do NOT symlink ssh/id_ed25519 - it's a placeholder
 }
 

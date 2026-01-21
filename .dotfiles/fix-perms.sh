@@ -18,6 +18,11 @@ chmod 600 "$DF/.sh_functions" 2>/dev/null
 chmod 600 "$DF/ssh/config" 2>/dev/null
 chmod 600 "$DF/ssh/id_ed25519" 2>/dev/null
 
+# Neovim config
+chmod 700 "$DF/nvim" 2>/dev/null
+find "$DF/nvim" -type d -exec chmod 700 {} \; 2>/dev/null
+find "$DF/nvim" -type f -exec chmod 600 {} \; 2>/dev/null
+
 # Also fix symlink targets in $HOME
 [ -f "$HOME/.zshrc" ] && chmod 600 "$HOME/.zshrc" 2>/dev/null
 [ -f "$HOME/.ssh/config" ] && chmod 600 "$HOME/.ssh/config" 2>/dev/null
