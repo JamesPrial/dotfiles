@@ -11,6 +11,7 @@ chmod 700 "$DF/ssh" 2>/dev/null
 chmod 700 "$DF/fix-perms.sh" 2>/dev/null
 chmod 700 "$DF/install.sh" 2>/dev/null
 chmod 700 "$DF/sync.sh" 2>/dev/null
+chmod 700 "$DF/cdir.sh" 2>/dev/null
 
 # Config files: 600
 chmod 600 "$DF/.zshrc" 2>/dev/null

@@ -10,5 +10,10 @@ alias grep='grep --color=auto'
 alias ec="$EDITOR $HOME/.zshrc" # edit .zshrc
 alias sc="source $HOME/.zshrc"  # reload zsh configuration
 alias tree='nocorrect tree'
+
 alias shawn="(cd $HOME/code/shawnbot && npm install && npm start)"
-alias venv="python3 -m venv .venv && source .venv/bin/activate"
+
+alias mkvenv="python3 -m venv .venv"
+alias venv='[ -d .venv ] || mkvenv; source .venv/bin/activate'
+
+alias cdir='$HOME/code/dotfiles/.dotfiles/cdir.sh'
