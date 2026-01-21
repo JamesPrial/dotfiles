@@ -367,6 +367,23 @@ EOF
 EOF
     chmod +x "$hooks_dir/post-checkout"
 
+    # Create pre-commit hook
+    cat > "$hooks_dir/pre-commit" << 'EOF'
+#!/bin/sh
+"$HOME/code/dotfiles/.dotfiles/fix-perms.sh"
+EOF
+    chmod +x "$hooks_dir/pre-commit"
+
+    # Create pre-push hook
+    cat > "$hooks_dir/pre-push" << 'EOF'
+#!/bin/sh
+DOTFILES_DIR="${DOTFILES_DIR:-$HOME/code/dotfiles}"
+cd "$DOTFILES_DIR" || exit 1
+git pull --ff-only origin main 2>/dev/null || exit 1
+"$DOTFILES_DIR/.dotfiles/fix-perms.sh"
+EOF
+    chmod +x "$hooks_dir/pre-push"
+
     log_success "Git hooks installed"
 
     # Run fix-perms now
