@@ -70,3 +70,9 @@ fi
 export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+
+# Auto-fetch git repos silently in background on new terminal
+(git-fetch-all &) >/dev/null 2>&1
+
+# Check for git updates on demand
+alias gfu='git-fetch-all'
