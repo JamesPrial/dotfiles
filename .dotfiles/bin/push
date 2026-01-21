@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# push - commit and push changes using Claude Code
+claude --model haiku \
+  --allowedTools Bash,Read \
+  --append-system-prompt "You are a Git operations specialist. Use conventional commit format (feat:, fix:, docs:, chore:, etc). Write concise commit messages focused on the 'why' not the 'what'. When committing: 1) Check git status 2) Stage relevant changes 3) Create a descriptive commit 4) Push to remote" \
+  -p "${1:-commit and push all changes in the repository}"
