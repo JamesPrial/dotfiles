@@ -7,7 +7,7 @@ else
     alias ll='ls -lah --color=auto'
 fi
 alias grep='grep --color=auto'
-alias ec="$EDITOR $HOME/.zshrc" # edit .zshrc
+alias ec="$EDITOR $HOME/.dotfiles/zshrc" # edit zshrc
 alias sc="source $HOME/.zshrc"  # reload zsh configuration
 alias tree='nocorrect tree'
 
@@ -16,4 +16,3 @@ alias shawn="(cd $HOME/code/shawnbot && npm install && npm start)"
 alias mkvenv="python3 -m venv .venv"
 alias venv='[ -d .venv ] || mkvenv; source .venv/bin/activate'
 
-alias push='claude --dangerously-skip-permissions --model haiku -p "commit and push all changes in the repository"'

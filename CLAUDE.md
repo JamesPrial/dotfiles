@@ -4,31 +4,48 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Personal dotfiles repository for cross-platform shell configuration (macOS and Linux). Manages zsh configuration, shell aliases, and SSH config via symlinks from `~/.zshrc`, `~/.bash_aliases`, and `~/.ssh/config` to files in this repo.
+Personal dotfiles repository for cross-platform shell configuration (macOS and Linux). Manages zsh configuration, shell aliases, and SSH config via a directory symlink at `~/.dotfiles` pointing to this repo's `.dotfiles/` directory.
 
 ## Key Commands
 
 ```bash
-# Bootstrap on a new machine (installs deps, clones repo, creates symlinks)
+# Bootstrap on a new machine (clones to current directory by default)
 curl -fsSL https://raw.githubusercontent.com/JamesPrial/dotfiles/main/.dotfiles/install.sh | sh
 
+# Install to a specific location
+./install.sh /path/to/destination
+# Or via environment variable
+DOTFILES_TARGET=/path/to/dest curl -fsSL ... | sh
+
 # Sync dotfiles (pulls latest and fixes permissions)
-.dotfiles/sync.sh
+~/.dotfiles/sync.sh
 
 # Fix file permissions manually
-.dotfiles/fix-perms.sh
+~/.dotfiles/fix-perms.sh
 ```
 
 ## Repository Structure
 
-- `.dotfiles/` - The actual configuration files
+- `.dotfiles/` - The configuration files (symlinked to `~/.dotfiles`)
   - `install.sh` - Idempotent bootstrap script (installs zsh, fzf, nvm, go, zplug)
   - `sync.sh` - Pulls updates and runs fix-perms
   - `fix-perms.sh` - Sets owner-only permissions (700 for dirs/scripts, 600 for configs)
-  - `.zshrc` - Zsh configuration with zplug plugins
-  - `.bash_aliases` - Shell aliases (sourced by zshrc)
+  - `zshrc` - Zsh configuration with zplug plugins
+  - `bash_aliases` - Shell aliases (sourced by zshrc)
+  - `sh_functions` - Shell functions (sourced by zshrc)
   - `ssh/config` - SSH host configurations
   - `ssh/id_ed25519` - Placeholder only (actual keys are NOT stored in repo)
+  - `nvim/` - Neovim configuration
+
+## Symlink Structure
+
+After installation:
+```
+~/.dotfiles -> <repo>/.dotfiles    # Main directory symlink
+~/.zshrc                           # Bootstrap file that sources ~/.dotfiles/zshrc
+~/.ssh/config -> ~/.dotfiles/ssh/config
+~/.config/nvim -> ~/.dotfiles/nvim
+```
 
 ## Platform Detection
 
@@ -43,7 +60,7 @@ All files in `.dotfiles/` use owner-only permissions enforced by `fix-perms.sh`:
 - Directories and scripts: `700`
 - Config files: `600`
 
-Git hooks (`post-merge`, `post-checkout`) automatically run `fix-perms.sh` after pulls.
+Git hooks (`post-merge`, `post-checkout`, `pre-commit`, `pre-push`) automatically run `fix-perms.sh`.
 
 ## Zplug Plugins
 

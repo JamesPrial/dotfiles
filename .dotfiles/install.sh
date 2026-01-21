@@ -8,7 +8,7 @@ set -e
 
 # Configuration
 DOTFILES_REPO="https://github.com/JamesPrial/dotfiles.git"
-DOTFILES_DIR="$HOME/code/dotfiles"
+# DOTFILES_DIR is set dynamically by determine_install_path()
 BACKUP_DIR="$HOME/.dotfiles_backup/$(date +%Y%m%d_%H%M%S)"
 
 # Colors (only if terminal supports it)
@@ -44,6 +44,30 @@ backup_file() {
         cp -a "$file" "$BACKUP_DIR/"
         log_info "Backed up $file to $BACKUP_DIR/"
     fi
+}
+
+# Determine where to clone/find dotfiles
+determine_install_path() {
+    # Priority 1: Command line argument
+    if [ -n "$1" ]; then
+        DOTFILES_DIR="$1"
+        return 0
+    fi
+
+    # Priority 2: Environment variable
+    if [ -n "$DOTFILES_TARGET" ]; then
+        DOTFILES_DIR="$DOTFILES_TARGET"
+        return 0
+    fi
+
+    # Priority 3: Detect if already in a dotfiles repo
+    if [ -d ".git" ] && git remote -v 2>/dev/null | grep -q "dotfiles"; then
+        DOTFILES_DIR="$(pwd)"
+        return 0
+    fi
+
+    # Priority 4: Default to current directory + /dotfiles
+    DOTFILES_DIR="${PWD}/dotfiles"
 }
 
 # Create a symlink, backing up existing file if needed
@@ -296,16 +320,19 @@ install_dependencies() {
 clone_repo() {
     log_info "Setting up dotfiles repository..."
 
-    # Create ~/code directory if needed
-    if [ ! -d "$HOME/code" ]; then
-        mkdir -p "$HOME/code"
-        log_info "Created ~/code directory"
+    # Get parent directory of target
+    parent_dir="$(dirname "$DOTFILES_DIR")"
+
+    # Create parent directory if needed
+    if [ ! -d "$parent_dir" ]; then
+        mkdir -p "$parent_dir"
+        log_info "Created directory: $parent_dir"
     fi
 
     # Clone or update repository
     if [ -d "$DOTFILES_DIR" ]; then
         if [ -d "$DOTFILES_DIR/.git" ]; then
-            log_info "Dotfiles already cloned, updating..."
+            log_info "Dotfiles already present, updating..."
             cd "$DOTFILES_DIR"
             git pull --ff-only || log_warn "Could not update dotfiles (local changes?)"
             cd - >/dev/null
@@ -323,40 +350,40 @@ clone_repo() {
 setup_symlinks() {
     log_info "Setting up symlinks..."
 
-    # Main .zshrc symlink
-    create_symlink "$DOTFILES_DIR/.dotfiles/.zshrc" "$HOME/.zshrc"
+    # Primary: Symlink the entire .dotfiles directory to ~/.dotfiles
+    create_symlink "$DOTFILES_DIR/.dotfiles" "$HOME/.dotfiles"
 
-    # Bash aliases
-    create_symlink "$DOTFILES_DIR/.dotfiles/.bash_aliases" "$HOME/.bash_aliases"
+    # Create minimal bootstrap ~/.zshrc
+    if [ -f "$HOME/.zshrc" ] && [ ! -L "$HOME/.zshrc" ]; then
+        backup_file "$HOME/.zshrc"
+    fi
+    rm -f "$HOME/.zshrc"
+    cat > "$HOME/.zshrc" << 'EOF'
+# Bootstrap zshrc from dotfiles
+[ -f ~/.dotfiles/zshrc ] && source ~/.dotfiles/zshrc
+EOF
+    chmod 600 "$HOME/.zshrc"
+    log_success "Created bootstrap ~/.zshrc"
 
-    # Shell functions
-    create_symlink "$DOTFILES_DIR/.dotfiles/.sh_functions" "$HOME/.sh_functions"
-
-    # SSH config
-    if [ -f "$DOTFILES_DIR/.dotfiles/ssh/config" ]; then
-        # Ensure ~/.ssh exists with proper permissions
+    # SSH config (still needs individual symlink due to ~/.ssh permissions model)
+    if [ -f "$HOME/.dotfiles/ssh/config" ]; then
         if [ ! -d "$HOME/.ssh" ]; then
             mkdir -p "$HOME/.ssh"
             chmod 700 "$HOME/.ssh"
             log_info "Created ~/.ssh directory"
         fi
-
-        create_symlink "$DOTFILES_DIR/.dotfiles/ssh/config" "$HOME/.ssh/config"
-
-        # Ensure proper permissions on ssh config
+        create_symlink "$HOME/.dotfiles/ssh/config" "$HOME/.ssh/config"
         chmod 600 "$HOME/.ssh/config" 2>/dev/null || true
     fi
 
     # Neovim config
-    if [ -d "$DOTFILES_DIR/.dotfiles/nvim" ]; then
+    if [ -d "$HOME/.dotfiles/nvim" ]; then
         if [ ! -d "$HOME/.config" ]; then
             mkdir -p "$HOME/.config"
             log_info "Created ~/.config directory"
         fi
-        create_symlink "$DOTFILES_DIR/.dotfiles/nvim" "$HOME/.config/nvim"
+        create_symlink "$HOME/.dotfiles/nvim" "$HOME/.config/nvim"
     fi
-
-    # NOTE: We do NOT symlink ssh/id_ed25519 - it's a placeholder
 }
 
 # Set up git hooks to fix permissions after pulls
@@ -365,34 +392,32 @@ setup_hooks() {
 
     hooks_dir="$DOTFILES_DIR/.git/hooks"
 
-    # Create post-merge hook
+    # All hooks use the ~/.dotfiles symlink which is always valid
     cat > "$hooks_dir/post-merge" << 'EOF'
 #!/bin/sh
-"$HOME/code/dotfiles/.dotfiles/fix-perms.sh"
+"$HOME/.dotfiles/fix-perms.sh"
 EOF
     chmod +x "$hooks_dir/post-merge"
 
-    # Create post-checkout hook
     cat > "$hooks_dir/post-checkout" << 'EOF'
 #!/bin/sh
-"$HOME/code/dotfiles/.dotfiles/fix-perms.sh"
+"$HOME/.dotfiles/fix-perms.sh"
 EOF
     chmod +x "$hooks_dir/post-checkout"
 
-    # Create pre-commit hook
     cat > "$hooks_dir/pre-commit" << 'EOF'
 #!/bin/sh
-"$HOME/code/dotfiles/.dotfiles/fix-perms.sh"
+"$HOME/.dotfiles/fix-perms.sh"
 EOF
     chmod +x "$hooks_dir/pre-commit"
 
-    # Create pre-push hook
     cat > "$hooks_dir/pre-push" << 'EOF'
 #!/bin/sh
-DOTFILES_DIR="${DOTFILES_DIR:-$HOME/code/dotfiles}"
+# Resolve actual repo location from symlink
+DOTFILES_DIR="$(dirname "$(readlink -f "$HOME/.dotfiles")")"
 cd "$DOTFILES_DIR" || exit 1
 git pull --ff-only origin main 2>/dev/null || exit 1
-"$DOTFILES_DIR/.dotfiles/fix-perms.sh"
+"$HOME/.dotfiles/fix-perms.sh"
 EOF
     chmod +x "$hooks_dir/pre-push"
 
@@ -409,7 +434,7 @@ EOF
 setup_cron() {
     log_info "Checking cron setup..."
 
-    cron_entry="@reboot $DOTFILES_DIR/.dotfiles/sync.sh"
+    cron_entry="@reboot $HOME/.dotfiles/sync.sh"
 
     # Check if already set up
     if crontab -l 2>/dev/null | grep -q "sync.sh"; then
@@ -478,9 +503,10 @@ post_install() {
     echo ""
     echo "What was set up:"
     echo "  - Dotfiles cloned to: $DOTFILES_DIR"
-    echo "  - Symlinked: ~/.zshrc"
-    echo "  - Symlinked: ~/.bash_aliases"
+    echo "  - Symlinked: ~/.dotfiles -> $DOTFILES_DIR/.dotfiles"
+    echo "  - Created: ~/.zshrc (bootstrap)"
     [ -L "$HOME/.ssh/config" ] && echo "  - Symlinked: ~/.ssh/config"
+    [ -L "$HOME/.config/nvim" ] && echo "  - Symlinked: ~/.config/nvim"
     echo "  - Git hooks: permissions auto-fix on pull"
     echo ""
     echo "Installed:"
@@ -517,6 +543,10 @@ main() {
         log_error "Do not run this script as root"
         exit 1
     fi
+
+    # Determine installation path (accepts optional argument)
+    determine_install_path "$1"
+    log_info "Dotfiles will be installed to: $DOTFILES_DIR"
 
     detect_os
     install_dependencies

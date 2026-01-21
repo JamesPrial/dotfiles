@@ -6,11 +6,11 @@ export PATH="$HOME/.nvm/versions/node/v25.4.0/bin:$PATH"
 export PATH="$HOME/.local/bin:$PATH"
 
 # Dotfiles scripts
-export PATH="$HOME/code/dotfiles/.dotfiles:$PATH"
+export PATH="$HOME/.dotfiles/bin:$HOME/.dotfiles:$PATH"
 
 # Load aliases and functions
-[ -f ~/.bash_aliases ] && source ~/.bash_aliases
-[ -f ~/.sh_functions ] && source ~/.sh_functions
+[ -f ~/.dotfiles/bash_aliases ] && source ~/.dotfiles/bash_aliases
+[ -f ~/.dotfiles/sh_functions ] && source ~/.dotfiles/sh_functions
 
 # Use emacs keybindings even if our EDITOR is set to vi
 bindkey -e
