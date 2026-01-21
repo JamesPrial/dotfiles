@@ -35,7 +35,9 @@ DOTFILES_TARGET=/path/to/dest curl -fsSL ... | sh
   - `sh_functions` - Shell functions (sourced by zshrc)
   - `ssh/config` - SSH host configurations
   - `ssh/id_ed25519` - Placeholder only (actual keys are NOT stored in repo)
-  - `nvim/` - Neovim configuration
+  - `nvim/` - Neovim configuration (LazyVim-based)
+  - `bin/` - Utility scripts (added to PATH via zshrc)
+    - `claude/push` - Claude Code wrapper for git commit/push with conventional commits
 
 ## Symlink Structure
 
@@ -68,3 +70,11 @@ The zshrc uses these zplug plugins:
 - zsh-sudo, command-not-found, zsh-syntax-highlighting
 - zsh-autosuggestions, zsh-history-substring-search, zsh-completions
 - robbyrussell theme
+
+## Shell Aliases
+
+Key aliases defined in `bash_aliases`:
+- `ec` - Edit zshrc (`$EDITOR ~/.dotfiles/zshrc`)
+- `sc` - Reload zsh configuration (`source ~/.zshrc`)
+- `venv` - Create/activate Python virtual environment in `.venv`
+- `mkvenv` - Create Python 3 virtual environment
