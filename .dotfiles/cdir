@@ -11,3 +11,5 @@ mkdir -p "$1" || exit 1
 if [ -n "$2" ]; then
     chmod "$2" "$1"
 fi
+
+cd "$1"
