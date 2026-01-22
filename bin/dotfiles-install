@@ -100,7 +100,11 @@ detect_os() {
             log_info "Detected macOS"
             ;;
         Linux)
-            if [ -f /etc/debian_version ]; then
+            # Check for Termux first (before other Linux distros)
+            if [ -d "/data/data/com.termux" ] || [ -n "$TERMUX_VERSION" ]; then
+                OS="termux"
+                log_info "Detected Termux/Android"
+            elif [ -f /etc/debian_version ]; then
                 OS="debian"
                 log_info "Detected Debian/Ubuntu Linux"
             elif [ -f /etc/redhat-release ]; then
@@ -148,6 +152,9 @@ install_git() {
         macos)
             xcode-select --install 2>/dev/null || true
             ;;
+        termux)
+            pkg install -y git
+            ;;
         debian)
             sudo apt-get update
             sudo apt-get install -y git
@@ -170,6 +177,9 @@ install_zsh() {
     case "$OS" in
         macos)
             brew install zsh
+            ;;
+        termux)
+            pkg install -y zsh
             ;;
         debian)
             sudo apt-get update
@@ -195,6 +205,15 @@ install_zplug() {
             if [ ! -d "/opt/homebrew/opt/zplug" ] && [ ! -d "/usr/local/opt/zplug" ]; then
                 brew install zplug
                 log_success "zplug installed via Homebrew"
+            else
+                log_success "zplug already installed"
+            fi
+            ;;
+        termux)
+            # Termux doesn't have sudo access, install directly to ~/.zplug
+            if [ ! -d "$HOME/.zplug" ]; then
+                git clone https://github.com/zplug/zplug "$HOME/.zplug"
+                log_success "zplug installed to ~/.zplug"
             else
                 log_success "zplug already installed"
             fi
@@ -238,6 +257,9 @@ install_fzf() {
             brew install fzf
             # Install key bindings and completion non-interactively
             "$(brew --prefix)/opt/fzf/install" --key-bindings --completion --no-update-rc --no-bash --no-fish </dev/null
+            ;;
+        termux)
+            pkg install -y fzf
             ;;
         debian)
             sudo apt-get install -y fzf
@@ -283,6 +305,9 @@ install_go() {
         macos)
             brew install go
             ;;
+        termux)
+            pkg install -y golang
+            ;;
         debian)
             sudo apt-get install -y golang
             ;;
@@ -307,6 +332,13 @@ install_nvim() {
 
     log_info "Installing Neovim..."
 
+    # Termux: use pkg instead of manual download
+    if [ "$OS" = "termux" ]; then
+        pkg install -y neovim
+        log_success "Neovim installed via pkg"
+        return 0
+    fi
+
     # Create ~/.local/bin if it doesn't exist
     mkdir -p "$HOME/.local/bin"
 
@@ -328,7 +360,18 @@ install_nvim() {
             esac
             ;;
         Linux)
-            NVIM_ARCHIVE="nvim-linux-x86_64.tar.gz"
+            case "$(uname -m)" in
+                x86_64)
+                    NVIM_ARCHIVE="nvim-linux-x86_64.tar.gz"
+                    ;;
+                aarch64|arm64)
+                    NVIM_ARCHIVE="nvim-linux-aarch64.tar.gz"
+                    ;;
+                *)
+                    log_error "Unsupported Linux architecture: $(uname -m)"
+                    return 1
+                    ;;
+            esac
             ;;
         *)
             log_error "Unsupported OS for nvim direct install: $(uname -s)"
@@ -510,6 +553,13 @@ EOF
 setup_cron() {
     log_info "Checking cron setup..."
 
+    # Termux: cron is not reliably available
+    if [ "$OS" = "termux" ]; then
+        log_warn "Cron is not reliably available on Termux - skipping cron setup"
+        log_info "Consider using Termux:Boot app for startup scripts instead"
+        return 0
+    fi
+
     cron_entry="@reboot $HOME/.dotfiles/bin/dotfiles-sync"
 
     # Check if already set up
@@ -543,6 +593,32 @@ switch_to_zsh() {
     fi
 
     log_info "Switching default shell to zsh..."
+
+    # Termux: skip /etc/shells and chsh, use profile fallback only
+    if [ "$OS" = "termux" ]; then
+        log_info "Termux detected - using profile fallback for shell switching"
+        # Try .profile first, fall back to .bashrc
+        if [ -f "$HOME/.profile" ]; then
+            if ! grep -q "exec zsh" "$HOME/.profile" 2>/dev/null; then
+                printf '\n# Start zsh if available\nif [ -x "$(command -v zsh)" ]; then exec zsh; fi\n' >> "$HOME/.profile"
+                log_success "Added zsh exec to ~/.profile"
+            else
+                log_success "zsh exec already in ~/.profile"
+            fi
+        elif [ -f "$HOME/.bashrc" ]; then
+            if ! grep -q "exec zsh" "$HOME/.bashrc" 2>/dev/null; then
+                printf '\n# Start zsh if available\nif [ -x "$(command -v zsh)" ]; then exec zsh; fi\n' >> "$HOME/.bashrc"
+                log_success "Added zsh exec to ~/.bashrc"
+            else
+                log_success "zsh exec already in ~/.bashrc"
+            fi
+        else
+            # Create .profile if neither exists
+            printf '# Start zsh if available\nif [ -x "$(command -v zsh)" ]; then exec zsh; fi\n' > "$HOME/.profile"
+            log_success "Created ~/.profile with zsh exec"
+        fi
+        return 0
+    fi
 
     # Ensure zsh is in /etc/shells
     if ! grep -q "^$zsh_path$" /etc/shells 2>/dev/null; then

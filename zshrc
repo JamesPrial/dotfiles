@@ -1,5 +1,7 @@
-# Set path if required
-export PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
+# Go paths - add if they exist
+[[ -d "$HOME/go/bin" ]] && export PATH="$HOME/go/bin:$PATH"
+[[ -d "/usr/local/go/bin" ]] && export PATH="/usr/local/go/bin:$PATH"
+[[ -n "$PREFIX" && -d "$PREFIX/bin" ]] && export PATH="$PREFIX/bin:$PATH"
 
 export PATH="$HOME/.nvm/versions/node/v25.4.0/bin:$PATH"
 
@@ -38,11 +40,14 @@ compinit
 zstyle ':completion:*' menu select
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Z}'
 
-# zplug - manage plugins
-if [[ "$(uname)" == "Darwin" ]]; then
-    export ZPLUG_HOME=/opt/homebrew/opt/zplug
-    source $ZPLUG_HOME/init.zsh
-else
+# zplug - check user install first, then system paths
+if [[ -f "$HOME/.zplug/init.zsh" ]]; then
+    source "$HOME/.zplug/init.zsh"
+elif [[ "$(uname -s)" == "Darwin" ]]; then
+    if [[ -f "/opt/homebrew/opt/zplug/init.zsh" ]]; then
+        source /opt/homebrew/opt/zplug/init.zsh
+    fi
+elif [[ -f "/usr/share/zplug/init.zsh" ]]; then
     source /usr/share/zplug/init.zsh
 fi
 zplug "hcgraf/zsh-sudo"
@@ -62,12 +67,17 @@ if ! zplug check; then
 fi
 zplug load
 
-# fzf key bindings and completion
-if [[ "$(uname)" == "Darwin" ]]; then
-    [ -f ~/.fzf.zsh ] && source ~/.fzf.zsh
-else
-    [ -f /usr/share/doc/fzf/examples/key-bindings.zsh ] && source /usr/share/doc/fzf/examples/key-bindings.zsh
-    [ -f /usr/share/doc/fzf/examples/completion.zsh ] && source /usr/share/doc/fzf/examples/completion.zsh
+# fzf - check multiple possible locations
+if [[ -f "$HOME/.fzf.zsh" ]]; then
+    source "$HOME/.fzf.zsh"
+elif [[ -n "$PREFIX" && -d "$PREFIX/share/fzf" ]]; then
+    # Termux
+    [[ -f "$PREFIX/share/fzf/completion.zsh" ]] && source "$PREFIX/share/fzf/completion.zsh"
+    [[ -f "$PREFIX/share/fzf/key-bindings.zsh" ]] && source "$PREFIX/share/fzf/key-bindings.zsh"
+elif [[ -d "/usr/share/doc/fzf/examples" ]]; then
+    # Debian/Ubuntu
+    source /usr/share/doc/fzf/examples/completion.zsh
+    source /usr/share/doc/fzf/examples/key-bindings.zsh
 fi
 
 export NVM_DIR="$HOME/.nvm"

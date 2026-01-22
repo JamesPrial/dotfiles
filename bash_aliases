@@ -16,5 +16,15 @@ alias shawn="(cd $HOME/code/shawnbot && npm install && npm start)"
 alias mkvenv="python3 -m venv .venv"
 alias venv='[ -d .venv ] || mkvenv; source .venv/bin/activate'
 
-# open VSCode in a new window in cwd
-alias c="code -n ."
+# VSCode alias - only on desktop platforms where code is available
+if command -v code >/dev/null 2>&1; then
+    alias c="code -n ."
+fi
+
+# Termux/Android-specific aliases
+if [[ -n "$TERMUX_VERSION" ]]; then
+    # open files with default Android app (requires termux-api package)
+    if command -v termux-open >/dev/null 2>&1; then
+        alias open='termux-open'
+    fi
+fi
