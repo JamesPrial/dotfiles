@@ -4,30 +4,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-Personal dotfiles repository for cross-platform shell configuration (macOS and Linux). Manages zsh configuration, shell aliases, SSH config, and neovim config via a directory symlink at `~/.dotfiles` pointing to this repo's `.dotfiles/` directory.
+Personal dotfiles repository for cross-platform shell configuration (macOS and Linux). Manages zsh configuration, shell aliases, SSH config, and neovim config via a directory symlink at `~/.dotfiles` pointing to this repo.
 
 ## Key Commands
 
 ```bash
 # Bootstrap on a new machine
-curl -fsSL https://raw.githubusercontent.com/JamesPrial/dotfiles/main/.dotfiles/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/JamesPrial/dotfiles/main/bin/dotfiles-install | sh
 
 # Install to a specific location
-./install.sh /path/to/destination
+./bin/dotfiles-install /path/to/destination
 DOTFILES_TARGET=/path/to/dest curl -fsSL ... | sh
 
 # Sync dotfiles (pulls latest and fixes permissions)
-~/.dotfiles/sync.sh
+~/.dotfiles/bin/dotfiles-sync
 ```
 
 ## Symlink Structure
 
 After installation:
 ```
-~/.dotfiles -> <repo>/.dotfiles
+~/.dotfiles -> <repo>
 ~/.zshrc                           # Bootstrap file that sources ~/.dotfiles/zshrc
 ~/.ssh/config -> ~/.dotfiles/ssh/config
 ~/.config/nvim -> ~/.dotfiles/nvim
+~/.claudescripts -> ~/.dotfiles/claudescripts
 ```
 
 ## Platform Detection
@@ -39,8 +40,17 @@ OS detected via `uname -s`:
 
 ## Permissions
 
-All files use owner-only permissions (700 for dirs/scripts, 600 for configs). Git hooks automatically run `fix-perms.sh`.
+All files use owner-only permissions (700 for dirs/scripts, 600 for configs). Git hooks automatically run `bin/dotfiles-fix-perms`.
 
 ## Development
 
-See `.dotfiles/CLAUDE.md` for development guidance (adding configs, testing changes, etc).
+Scripts are in `bin/`:
+- `bin/dotfiles-install` - Idempotent bootstrap (safe to re-run)
+- `bin/dotfiles-sync` - Pulls latest and fixes permissions
+- `bin/dotfiles-fix-perms` - Sets 700 for dirs/scripts, 600 for configs
+
+## Claude Code Configuration
+
+- `.claude/agents/` - Custom subagent definitions
+- `.claude/skills/` - Project-specific skills (see `dotfiles-development`)
+- `.claude/todos.json` - task tracking

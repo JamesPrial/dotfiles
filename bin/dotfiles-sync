@@ -1,0 +1,12 @@
+#!/bin/sh
+# Sync dotfiles from GitHub and fix permissions
+
+if [ -L "$HOME/.dotfiles" ]; then
+    DOTFILES_DIR="$(readlink -f "$HOME/.dotfiles")"
+else
+    DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
+fi
+
+cd "$DOTFILES_DIR" || exit 1
+git pull --ff-only origin main 2>/dev/null || true
+"$HOME/.dotfiles/bin/dotfiles-fix-perms"
