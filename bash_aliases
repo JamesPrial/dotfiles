@@ -11,6 +11,8 @@ alias ec="$EDITOR $HOME/.dotfiles/zshrc" # edit zshrc
 alias sc="source $HOME/.zshrc"  # reload zsh configuration
 alias tree='nocorrect tree'
 
+alias tl="tree -L"
+
 alias shawn="(cd $HOME/code/shawnbot && npm install && npm start)"
 
 alias mkvenv="python3 -m venv .venv"
