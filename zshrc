@@ -6,7 +6,10 @@ export PATH="$HOME/.nvm/versions/node/v25.4.0/bin:$PATH"
 export PATH="$HOME/.local/bin:$PATH"
 
 # Dotfiles scripts
-export PATH="$HOME/.claudescripts:$HOME/.dotfiles/bin:$HOME/.dotfiles:$PATH"
+export PATH="$HOME/.dotfiles/bin:$HOME/.dotfiles:$PATH"
+
+# Load Claude Code configuration
+[ -f ~/.dotfiles/claudescripts/profile ] && source ~/.dotfiles/claudescripts/profile
 
 # Load aliases and functions
 [ -f ~/.dotfiles/bash_aliases ] && source ~/.dotfiles/bash_aliases

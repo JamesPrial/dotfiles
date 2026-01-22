@@ -1,0 +1,10 @@
+# Claude Code shell configuration
+# Sourced by ~/.dotfiles/zshrc
+
+# Add claudescripts to PATH
+export PATH="$HOME/.claudescripts:$PATH"
+
+# Future Claude-related config can go here:
+# - Environment variables
+# - Aliases
+# - Functions
