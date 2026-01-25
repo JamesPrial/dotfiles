@@ -48,13 +48,15 @@ digraph agent_selection {
 
 | Agent | Model | Use For |
 |-------|-------|---------|
-| `git-ops` | Haiku | **All git operations** - commits, branches, status. Isolates git context from main conversation. |
+| `git-ops` | Haiku | **All git operations** - commits, branches, status. Isolates git context. **Always commit AND push.** |
 | `bash-script-architect` | Haiku | Writing/debugging bash scripts |
 | `bash-tdd-architect` | inherit | TDD for bash scripts - runs **IN PARALLEL** with `bash-script-architect` |
 | `gh-cli-expert` | Sonnet | GitHub Actions failures, PR management, gh CLI |
 | `devops-infra-lead` | Sonnet | Infrastructure, CI/CD, system admin |
 
 **Important:** For committing changes, use the `git-ops` agent (not generic skills). It keeps git output isolated from the main context window.
+
+**git-ops Commit Workflow:** When prompting git-ops for commits, ALWAYS include "and push to remote" in the prompt. Example: `"Commit these changes and push to origin main."`
 
 **TDD for Scripts:** When writing or modifying bash scripts, launch `bash-tdd-architect` **IN PARALLEL** with `bash-script-architect`. The TDD agent designs behavior-driven tests BEFORE seeing implementation, ensuring true test-first development.
 
