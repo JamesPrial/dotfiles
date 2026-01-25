@@ -1,0 +1,7 @@
+# Workspace repos to monitor for GitHub Actions failures
+repos:
+  - JamesPrial/claude-plugins
+  - JamesPrial/golang-plugin
+  - JamesPrial/dotfiles
+  - JamesPrial/skills
+  - JamesPrial/mcp-server-oauth21
