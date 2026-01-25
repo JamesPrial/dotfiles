@@ -24,3 +24,6 @@ alias c="code -n ."
 
 # GitHub Actions failures checker
 alias af="$HOME/.dotfiles/bin/actions-fails"
+
+# Dotfiles installer
+alias di="$HOME/.dotfiles/bin/dotfiles-install"
