@@ -78,13 +78,21 @@ Install via Homebrew on macOS:
 | `push` | Haiku | Quick commit/push with conventional commits |
 | `ghcli` | Sonnet | GitHub CLI operations |
 | `support` | Opus | Bash debugging with web search |
-| `actions-fails` | N/A | Check workspace repos for GitHub Actions failures (JSON output) |
 
 Configuration files:
 - `profile` - Claude Code configuration (settings, model preferences)
-- `repos.yaml` - List of repos for `actions-fails` to monitor
 
 Accessed via `~/.claudescripts` symlink (in PATH).
+
+## Utility Scripts (bin/)
+
+| Script | Purpose |
+|--------|---------|
+| `actions-fails` | Check workspace repos for GitHub Actions failures (JSON output) |
+
+Configuration: `bin/repos.yaml` - List of repos to monitor
+
+Alias: `af` - shortcut for `actions-fails`
 
 ## Adding New Configurations
 
@@ -120,8 +128,8 @@ Use bats-core for behavior-driven testing of bash scripts.
 
 **Run tests:**
 ```bash
-bats claudescripts/tests/            # Run all tests in directory
-bats claudescripts/tests/test-actions-fails.bats  # Run specific test file
+bats bin/tests/                      # Run all tests in directory
+bats bin/tests/test-actions-fails.bats  # Run specific test file
 ```
 
 **Test structure (Given/When/Then):**
