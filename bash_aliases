@@ -14,9 +14,13 @@ alias tree='nocorrect tree'
 alias tl="tree -L"
 
 alias shawn="(cd $HOME/code/shawnbot && npm install && npm start)"
+alias reshawn='(ssh james@cb "pm2 restart shawnbot")'
 
 alias mkvenv="python3 -m venv .venv"
 alias venv='[ -d .venv ] || mkvenv; source .venv/bin/activate'
 
 # open VSCode in a new window in cwd
 alias c="code -n ."
+
+# GitHub Actions failures checker
+alias af="$HOME/.dotfiles/bin/actions-fails"
