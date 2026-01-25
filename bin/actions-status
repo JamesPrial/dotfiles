@@ -109,7 +109,7 @@ check_dependencies() {
 #   Writes help to stdout
 #######################################
 show_help() {
-  head -n 31 "${BASH_SOURCE[0]}" | tail -n 30
+  head -n 31 "${BASH_SOURCE[0]}" | tail -n 27
 }
 
 #######################################
@@ -205,7 +205,7 @@ fetch_repo_status() {
 
   gh run list \
     --repo "$repo" \
-    --limit 50 \
+    --limit 100 \
     --json workflowName,databaseId,headBranch,conclusion,url,createdAt,updatedAt,headSha,actor \
     2>/dev/null || {
     warn "Failed to fetch runs for $repo" >&2
