@@ -1,6 +1,6 @@
 ---
 name: claude-code-slash-commands
-description: Create custom slash commands for Claude Code. Use when the user wants to create, generate, or build a slash command (.md file) for Claude Code, or when they ask about slash command syntax, frontmatter options, argument handling, or want help organizing their commands. Triggers on phrases like "make a slash command", "create a command for Claude Code", "write a /command", or questions about $ARGUMENTS, allowed-tools, or command frontmatter.
+description: This skill should be used when the user wants to create, generate, or build a slash command (.md file) for Claude Code. Also use when asking about slash command syntax, frontmatter options, argument handling ($ARGUMENTS, $1, $2), allowed-tools patterns, bash execution (!`command`), file references (@path), or organizing commands by namespace. Triggers on phrases like "make a slash command", "create a command for Claude Code", "write a /command", "add a slash command", "command frontmatter", or questions about command structure.
 ---
 
 # Claude Code Slash Commands

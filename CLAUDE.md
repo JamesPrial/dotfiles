@@ -52,5 +52,9 @@ Scripts are in `bin/`:
 ## Claude Code Configuration
 
 - `.claude/agents/` - Custom subagent definitions
-- `.claude/skills/` - Project-specific skills (see `dotfiles-development`)
+- `.claude/skills/` - Project-specific skills
 - `.claude/todos.json` - task tracking
+
+## Required: Use dotfiles-development Skill
+
+**ALWAYS invoke the `dotfiles-development` skill when working in this repo.** The skill contains authoritative guidance for agent selection, testing, permissions, and bash patterns. CLAUDE.md is intentionally minimal - the skill is the source of truth.
