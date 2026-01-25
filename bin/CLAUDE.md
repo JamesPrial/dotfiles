@@ -25,9 +25,9 @@ PATH includes: `$HOME/.claudescripts:$HOME/.dotfiles/bin`
 - `dotfiles-install` - Bootstrap script for new machines
 - `dotfiles-sync` - Pull latest and fix permissions
 - `dotfiles-fix-perms` - Fix file permissions
+- `actions-fails` - Check workspace repos for GitHub Actions failures (JSON output)
 
 Claude Code wrappers are in `claudescripts/`:
 - `push` - Quick commit/push (Haiku)
 - `ghcli` - GitHub CLI operations (Sonnet)
 - `support` - Bash debugging (Opus)
-- `actions-fails` - Check workspace repos for GitHub Actions failures (JSON output)
