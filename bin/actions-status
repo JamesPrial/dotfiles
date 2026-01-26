@@ -3,7 +3,7 @@ set -euo pipefail
 IFS=$'\n\t'
 
 #######################################
-# Check workspace repos for GitHub Actions status and output JSON.
+# Check GitHub Actions status across workspace repos and output JSON.
 #
 # Usage: actions-status [options]
 #
@@ -109,7 +109,7 @@ check_dependencies() {
 #   Writes help to stdout
 #######################################
 show_help() {
-  head -n 31 "${BASH_SOURCE[0]}" | tail -n 27
+  head -n 31 "${BASH_SOURCE[0]}" | tail -n 30
 }
 
 #######################################
@@ -188,7 +188,7 @@ read_repos() {
 }
 
 #######################################
-# Fetch all runs for a repo from GitHub Actions
+# Fetch runs for a repo from GitHub Actions
 # Globals:
 #   VERBOSE
 # Arguments:
@@ -198,15 +198,15 @@ read_repos() {
 # Returns:
 #   0 on success
 #######################################
-fetch_repo_status() {
+fetch_repo_runs() {
   local repo="$1"
 
   [[ $VERBOSE -eq 1 ]] && info "Fetching runs for $repo..." >&2
 
   gh run list \
     --repo "$repo" \
-    --limit 100 \
-    --json workflowName,databaseId,headBranch,conclusion,url,createdAt,updatedAt,headSha,actor \
+    --limit 50 \
+    --json workflowName,databaseId,headBranch,conclusion,url,createdAt,updatedAt,headSha \
     2>/dev/null || {
     warn "Failed to fetch runs for $repo" >&2
     echo "[]"
@@ -215,40 +215,46 @@ fetch_repo_status() {
 }
 
 #######################################
-# Process runs by grouping by workflow, keeping latest per workflow
+# Process runs into workflow objects with latest run per workflow
 # Arguments:
-#   $1 - Repository name
-#   $2 - JSON array of runs
+#   $1 - JSON array of runs
 # Outputs:
-#   Writes JSON object with repo and workflows array to stdout
+#   Writes JSON array of workflow objects to stdout
 # Returns:
 #   0 on success
 #######################################
 process_repo_workflows() {
-  local repo="$1"
-  local runs_json="$2"
+  local runs_json="$1"
 
   # Group by workflow, keep latest (first in list since gh sorts by date desc)
-  # Output one JSON object with nested workflows array
-  jq \
-    --arg repo "$repo" \
-    'group_by(.workflowName) |
-     map({
-       name: .[0].workflowName,
-       run_id: .[0].databaseId,
-       status: (if .[0].conclusion == null then "in_progress" else .[0].conclusion end),
-       branch: .[0].headBranch,
-       head_sha: .[0].headSha,
-       actor: .[0].actor.login,
-       created_at: .[0].createdAt,
-       duration_seconds: ((.[0].updatedAt | fromdateiso8601) - (.[0].createdAt | fromdateiso8601) | floor),
-       url: .[0].url
-     }) |
-     {
-       repo: $repo,
-       workflows: .
-     }' \
-    <<< "$runs_json"
+  # Map conclusion to status, compute duration for completed runs
+  jq '
+    group_by(.workflowName) |
+    map({
+      name: .[0].workflowName,
+      run_id: .[0].databaseId,
+      status: (
+        if .[0].conclusion == null then "in_progress"
+        elif .[0].conclusion == "success" then "success"
+        elif .[0].conclusion == "failure" then "failure"
+        elif .[0].conclusion == "cancelled" then "cancelled"
+        elif .[0].conclusion == "skipped" then "skipped"
+        else .[0].conclusion
+        end
+      ),
+      branch: .[0].headBranch,
+      head_sha: .[0].headSha,
+      created_at: .[0].createdAt,
+      duration_seconds: (
+        if .[0].conclusion != null then
+          (.[0].updatedAt | fromdateiso8601) - (.[0].createdAt | fromdateiso8601)
+        else
+          null
+        end
+      ),
+      url: .[0].url
+    })
+  ' <<< "$runs_json"
 }
 
 #######################################
@@ -282,29 +288,55 @@ main() {
 
   [[ $VERBOSE -eq 1 ]] && info "Found ${#repos[@]} repos to check" >&2
 
-  # Create temp file for collecting repos with workflows
+  # Create temp file for collecting repo data
   local temp_repos
   temp_repos=$(mktemp)
   trap "rm -f '$temp_repos'" EXIT
 
   local total_repos=${#repos[@]}
   local total_workflows=0
-  local status_counts
-  status_counts='{"success": 0, "failure": 0, "in_progress": 0, "cancelled": 0, "skipped": 0}'
+  local success_count=0
+  local failure_count=0
+  local in_progress_count=0
+  local cancelled_count=0
+  local skipped_count=0
 
-  # Fetch runs for each repo
+  # Fetch status for each repo
   for repo in ${repos[@]+"${repos[@]}"}; do
     # Skip empty lines
     [[ -z "$repo" ]] && continue
 
     local runs_json
-    runs_json=$(fetch_repo_status "$repo")
+    runs_json=$(fetch_repo_runs "$repo")
 
-    # Check if there are any runs for this repo
-    if [[ $(echo "$runs_json" | jq 'length') -gt 0 ]]; then
-      # Process workflows and append to temp file
-      process_repo_workflows "$repo" "$runs_json" >> "$temp_repos"
-    fi
+    # Process runs into workflow objects
+    local workflows_json
+    workflows_json=$(process_repo_workflows "$runs_json")
+
+    # Count workflows and statuses
+    local workflow_count
+    workflow_count=$(echo "$workflows_json" | jq 'length')
+    total_workflows=$((total_workflows + workflow_count))
+
+    # Count each status
+    local s_count f_count ip_count c_count sk_count
+    s_count=$(echo "$workflows_json" | jq '[.[] | select(.status == "success")] | length')
+    f_count=$(echo "$workflows_json" | jq '[.[] | select(.status == "failure")] | length')
+    ip_count=$(echo "$workflows_json" | jq '[.[] | select(.status == "in_progress")] | length')
+    c_count=$(echo "$workflows_json" | jq '[.[] | select(.status == "cancelled")] | length')
+    sk_count=$(echo "$workflows_json" | jq '[.[] | select(.status == "skipped")] | length')
+
+    success_count=$((success_count + s_count))
+    failure_count=$((failure_count + f_count))
+    in_progress_count=$((in_progress_count + ip_count))
+    cancelled_count=$((cancelled_count + c_count))
+    skipped_count=$((skipped_count + sk_count))
+
+    # Build repo object and append to temp file
+    jq \
+      --arg repo "$repo" \
+      '{repo: $repo, workflows: .}' \
+      <<< "$workflows_json" >> "$temp_repos"
   done
 
   # Generate timestamp in ISO 8601 format
@@ -313,26 +345,32 @@ main() {
 
   # Build and output final JSON
   if [[ -s "$temp_repos" ]]; then
-    # File has content - slurp JSON objects and compute summary
+    # File has content - slurp JSON objects and build output
     jq \
       --arg timestamp "$timestamp" \
       --argjson total_repos "$total_repos" \
+      --argjson total_workflows "$total_workflows" \
+      --argjson success "$success_count" \
+      --argjson failure "$failure_count" \
+      --argjson in_progress "$in_progress_count" \
+      --argjson cancelled "$cancelled_count" \
+      --argjson skipped "$skipped_count" \
       -s \
       '{
         timestamp: $timestamp,
         repos: .,
         summary: {
           total_repos: $total_repos,
-          total_workflows: (map(.workflows | length) | add),
-          success: (map(.workflows[] | select(.status == "success")) | length),
-          failure: (map(.workflows[] | select(.status == "failure")) | length),
-          in_progress: (map(.workflows[] | select(.status == "in_progress")) | length),
-          cancelled: (map(.workflows[] | select(.status == "cancelled")) | length),
-          skipped: (map(.workflows[] | select(.status == "skipped")) | length)
+          total_workflows: $total_workflows,
+          success: $success,
+          failure: $failure,
+          in_progress: $in_progress,
+          cancelled: $cancelled,
+          skipped: $skipped
         }
       }' < "$temp_repos"
   else
-    # No runs - output empty results
+    # No repos - output empty results
     jq \
       --arg timestamp "$timestamp" \
       --argjson total_repos "$total_repos" \
