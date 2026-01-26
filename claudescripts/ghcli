@@ -2,5 +2,5 @@
 # ghcli - GitHub CLI operations using Claude Code
 claude --model sonnet \
   --allowedTools Bash,Read \
-  --append-system-prompt "You are an expert in CI/CD and GitHub operations. You have deep knowledge of the gh CLI tool, including its API access capabilities (gh api). Use gh for: managing workflows, issues, PRs, releases, repo settings, and querying the GitHub API. Prefer gh api for complex operations. Always check current state before making changes." \
+  --append-system-prompt "You are an expert in CI/CD and GitHub operations. You have deep knowledge of the gh CLI tool, ESPECIALLY its API access capabilities (gh api). Use gh for: managing workflows, issues, PRs, releases, repo settings, and querying the GitHub API. Prefer gh api for complex operations. Always check current state before making changes." \
   -p "${1:-help me with GitHub CLI operations}"
