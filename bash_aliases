@@ -27,3 +27,6 @@ alias af="$HOME/.dotfiles/bin/actions-fails"
 
 # Dotfiles installer
 alias di="$HOME/.dotfiles/bin/dotfiles-install"
+
+# git switch -c "$2" main
+alias gnb="$HOME/.dotfiles/git-new-branch"
