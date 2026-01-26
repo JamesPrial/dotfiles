@@ -1,0 +1,400 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+
+#######################################
+# Check GitHub Actions status across workspace repos and output JSON.
+#
+# Usage: actions-status [options]
+#
+# Options:
+#   -h, --help     Show this help message
+#   -v, --verbose  Enable verbose output
+#
+# Environment Variables:
+#   ACTIONS_STATUS_CONFIG  Path to repos configuration file (default: bin/repos.yaml)
+#
+# Exit Codes:
+#   0  Success
+#   1  General error (missing dependency, file not found, etc.)
+#   2  Invalid arguments
+#
+# Dependencies:
+#   gh    - GitHub CLI (https://cli.github.com)
+#   yq    - YAML query tool (https://github.com/mikefarah/yq)
+#   jq    - JSON processor (https://stedolan.github.io/jq)
+#
+# Config File Format:
+#   repos:
+#     - owner/repo1
+#     - owner/repo2
+#######################################
+
+# Colors for output (stderr only)
+readonly RED='\033[0;31m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly NC='\033[0m' # No Color
+
+#######################################
+# Print error message and exit
+# Arguments:
+#   $@ - Error message
+# Outputs:
+#   Writes error to stderr
+# Returns:
+#   Exits with code 1
+#######################################
+die() {
+  echo -e "${RED}ERROR:${NC} $*" >&2
+  exit 1
+}
+
+#######################################
+# Print warning message
+# Arguments:
+#   $@ - Warning message
+# Outputs:
+#   Writes warning to stderr
+#######################################
+warn() {
+  echo -e "${YELLOW}WARNING:${NC} $*" >&2
+}
+
+#######################################
+# Print info message
+# Arguments:
+#   $@ - Info message
+# Outputs:
+#   Writes info to stderr
+#######################################
+info() {
+  echo -e "${BLUE}INFO:${NC} $*" >&2
+}
+
+#######################################
+# Check if command exists
+# Arguments:
+#   $1 - Command name
+# Returns:
+#   0 if command exists, 1 otherwise
+#######################################
+command_exists() {
+  command -v "$1" &>/dev/null
+}
+
+#######################################
+# Check all required dependencies
+# Returns:
+#   0 if all dependencies exist, exits with 1 otherwise
+#######################################
+check_dependencies() {
+  local missing=()
+  local -a deps=("gh" "yq" "jq")
+
+  for cmd in "${deps[@]}"; do
+    if ! command_exists "$cmd"; then
+      missing+=("$cmd")
+    fi
+  done
+
+  if [[ ${#missing[@]} -gt 0 ]]; then
+    die "Missing required dependencies: ${missing[*]}"
+  fi
+}
+
+#######################################
+# Show help message
+# Outputs:
+#   Writes help to stdout
+#######################################
+show_help() {
+  head -n 31 "${BASH_SOURCE[0]}" | tail -n 30
+}
+
+#######################################
+# Parse command line arguments
+# Globals:
+#   VERBOSE - Set to 1 if verbose mode enabled
+# Arguments:
+#   $@ - Command line arguments
+# Returns:
+#   0 on success, 2 on invalid arguments
+#######################################
+parse_args() {
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -h|--help)
+        show_help
+        exit 0
+        ;;
+      -v|--verbose)
+        VERBOSE=1
+        shift
+        ;;
+      *)
+        echo "Unknown option: $1" >&2
+        return 2
+        ;;
+    esac
+  done
+}
+
+#######################################
+# Get the config file path
+# Globals:
+#   SCRIPT_DIR
+# Arguments:
+#   None
+# Outputs:
+#   Writes config path to stdout
+# Returns:
+#   0 on success, exits with 1 if file not found
+#######################################
+get_config_file() {
+  local config_file="${ACTIONS_STATUS_CONFIG:-}"
+
+  if [[ -z "$config_file" ]]; then
+    config_file="${SCRIPT_DIR}/repos.yaml"
+  fi
+
+  # Ensure it's an absolute path
+  if [[ ! "$config_file" = /* ]]; then
+    config_file="$(cd "$(dirname "$config_file")" && pwd)/$(basename "$config_file")"
+  fi
+
+  if [[ ! -f "$config_file" ]]; then
+    die "Config file not found: $config_file"
+  fi
+
+  echo "$config_file"
+}
+
+#######################################
+# Read repos from YAML config file
+# Arguments:
+#   $1 - Path to config file
+# Outputs:
+#   Writes repo names to stdout (one per line)
+# Returns:
+#   0 on success, exits with 1 on error
+#######################################
+read_repos() {
+  local config_file="$1"
+
+  if ! yq '.repos[]' "$config_file" 2>/dev/null; then
+    die "Failed to parse repos from config file: $config_file"
+  fi
+}
+
+#######################################
+# Fetch runs for a repo from GitHub Actions
+# Globals:
+#   VERBOSE
+# Arguments:
+#   $1 - Repository in format owner/name
+# Outputs:
+#   Writes JSON array of runs to stdout
+# Returns:
+#   0 on success
+#######################################
+fetch_repo_runs() {
+  local repo="$1"
+
+  [[ $VERBOSE -eq 1 ]] && info "Fetching runs for $repo..." >&2
+
+  gh run list \
+    --repo "$repo" \
+    --limit 50 \
+    --json workflowName,databaseId,headBranch,conclusion,url,createdAt,updatedAt,headSha \
+    2>/dev/null || {
+    warn "Failed to fetch runs for $repo" >&2
+    echo "[]"
+    return 0
+  }
+}
+
+#######################################
+# Process runs into workflow objects with latest run per workflow
+# Arguments:
+#   $1 - JSON array of runs
+# Outputs:
+#   Writes JSON array of workflow objects to stdout
+# Returns:
+#   0 on success
+#######################################
+process_repo_workflows() {
+  local runs_json="$1"
+
+  # Group by workflow, keep latest (first in list since gh sorts by date desc)
+  # Map conclusion to status, compute duration for completed runs
+  jq '
+    group_by(.workflowName) |
+    map({
+      name: .[0].workflowName,
+      run_id: .[0].databaseId,
+      status: (
+        if .[0].conclusion == null then "in_progress"
+        elif .[0].conclusion == "success" then "success"
+        elif .[0].conclusion == "failure" then "failure"
+        elif .[0].conclusion == "cancelled" then "cancelled"
+        elif .[0].conclusion == "skipped" then "skipped"
+        else .[0].conclusion
+        end
+      ),
+      branch: .[0].headBranch,
+      head_sha: .[0].headSha,
+      created_at: .[0].createdAt,
+      duration_seconds: (
+        if .[0].conclusion != null then
+          (.[0].updatedAt | fromdateiso8601) - (.[0].createdAt | fromdateiso8601)
+        else
+          null
+        end
+      ),
+      url: .[0].url
+    })
+  ' <<< "$runs_json"
+}
+
+#######################################
+# Main function
+# Globals:
+#   VERBOSE, SCRIPT_DIR
+# Arguments:
+#   $@ - Command line arguments
+# Returns:
+#   0 on success, 1 on error, 2 on invalid arguments
+#######################################
+main() {
+  parse_args "$@" || return 2
+
+  check_dependencies
+
+  # Set SCRIPT_DIR to directory containing this script
+  local SCRIPT_DIR
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+  local config_file
+  config_file="$(get_config_file)"
+
+  [[ $VERBOSE -eq 1 ]] && info "Using config file: $config_file" >&2
+
+  # Read repos from config into array (using while loop for macOS compatibility)
+  local repos=()
+  while IFS= read -r repo; do
+    [[ -n "$repo" ]] && repos+=("$repo")
+  done < <(read_repos "$config_file")
+
+  [[ $VERBOSE -eq 1 ]] && info "Found ${#repos[@]} repos to check" >&2
+
+  # Create temp file for collecting repo data
+  local temp_repos
+  temp_repos=$(mktemp)
+  trap "rm -f '$temp_repos'" EXIT
+
+  local total_repos=${#repos[@]}
+  local total_workflows=0
+  local success_count=0
+  local failure_count=0
+  local in_progress_count=0
+  local cancelled_count=0
+  local skipped_count=0
+
+  # Fetch status for each repo
+  for repo in ${repos[@]+"${repos[@]}"}; do
+    # Skip empty lines
+    [[ -z "$repo" ]] && continue
+
+    local runs_json
+    runs_json=$(fetch_repo_runs "$repo")
+
+    # Process runs into workflow objects
+    local workflows_json
+    workflows_json=$(process_repo_workflows "$runs_json")
+
+    # Count workflows and statuses
+    local workflow_count
+    workflow_count=$(echo "$workflows_json" | jq 'length')
+    total_workflows=$((total_workflows + workflow_count))
+
+    # Count each status
+    local s_count f_count ip_count c_count sk_count
+    s_count=$(echo "$workflows_json" | jq '[.[] | select(.status == "success")] | length')
+    f_count=$(echo "$workflows_json" | jq '[.[] | select(.status == "failure")] | length')
+    ip_count=$(echo "$workflows_json" | jq '[.[] | select(.status == "in_progress")] | length')
+    c_count=$(echo "$workflows_json" | jq '[.[] | select(.status == "cancelled")] | length')
+    sk_count=$(echo "$workflows_json" | jq '[.[] | select(.status == "skipped")] | length')
+
+    success_count=$((success_count + s_count))
+    failure_count=$((failure_count + f_count))
+    in_progress_count=$((in_progress_count + ip_count))
+    cancelled_count=$((cancelled_count + c_count))
+    skipped_count=$((skipped_count + sk_count))
+
+    # Build repo object and append to temp file
+    jq \
+      --arg repo "$repo" \
+      '{repo: $repo, workflows: .}' \
+      <<< "$workflows_json" >> "$temp_repos"
+  done
+
+  # Generate timestamp in ISO 8601 format
+  local timestamp
+  timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+  # Build and output final JSON
+  if [[ -s "$temp_repos" ]]; then
+    # File has content - slurp JSON objects and build output
+    jq \
+      --arg timestamp "$timestamp" \
+      --argjson total_repos "$total_repos" \
+      --argjson total_workflows "$total_workflows" \
+      --argjson success "$success_count" \
+      --argjson failure "$failure_count" \
+      --argjson in_progress "$in_progress_count" \
+      --argjson cancelled "$cancelled_count" \
+      --argjson skipped "$skipped_count" \
+      -s \
+      '{
+        timestamp: $timestamp,
+        repos: .,
+        summary: {
+          total_repos: $total_repos,
+          total_workflows: $total_workflows,
+          success: $success,
+          failure: $failure,
+          in_progress: $in_progress,
+          cancelled: $cancelled,
+          skipped: $skipped
+        }
+      }' < "$temp_repos"
+  else
+    # No repos - output empty results
+    jq \
+      --arg timestamp "$timestamp" \
+      --argjson total_repos "$total_repos" \
+      -n \
+      '{
+        timestamp: $timestamp,
+        repos: [],
+        summary: {
+          total_repos: $total_repos,
+          total_workflows: 0,
+          success: 0,
+          failure: 0,
+          in_progress: 0,
+          cancelled: 0,
+          skipped: 0
+        }
+      }'
+  fi
+}
+
+# Global variables
+VERBOSE=0
+
+# Run main function if script is executed directly
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  main "$@"
+fi
