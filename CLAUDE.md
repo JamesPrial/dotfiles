@@ -42,6 +42,12 @@ OS detected via `uname -s`:
 
 All files use owner-only permissions (700 for dirs/scripts, 600 for configs). Git hooks automatically run `bin/dotfiles-fix-perms`.
 
+## Cross-Platform Patterns
+
+- Shebang: `#!/usr/bin/env bash` (not `#!/bin/bash`)
+- JSON parsing fallback: `sed` (not `grep -oP` - unavailable on macOS)
+- Use `uname -s` for OS detection, not `/etc/os-release` alone
+
 ## Development
 
 Scripts are in `bin/`:

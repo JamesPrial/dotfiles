@@ -4,7 +4,11 @@
 # Add claudescripts to PATH
 export PATH="$HOME/.claudescripts:$PATH"
 
-# Future Claude-related config can go here:
-# - Environment variables
-# - Aliases
-# - Functions
+# Short aliases for claudescripts
+alias cpush="$HOME/.claudescripts/push"
+alias cgh="$HOME/.claudescripts/ghcli"
+alias csup="$HOME/.claudescripts/support"
+alias cask="$HOME/.claudescripts/askclaude"
+
+# Edit claudescripts and bash_aliases
+alias ecc="nvim $HOME/.dotfiles/claudescripts $HOME/.dotfiles/bash_aliases"

@@ -31,5 +31,8 @@ alias di="$HOME/.dotfiles/bin/dotfiles-install"
 # git switch -c "$2" main
 alias gnb="$HOME/.dotfiles/git-new-branch"
 
-# Programmer's calculator
+# Programmer's calculator suite
 alias calc="$HOME/.dotfiles/bin/bash-calc"
+alias ceval="$HOME/.dotfiles/bin/bash-calc-eval"
+alias cconv="$HOME/.dotfiles/bin/bash-calc-convert"
+
