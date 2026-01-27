@@ -1,0 +1,315 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+
+#######################################
+# Expression evaluator for arithmetic and bitwise operations.
+#
+# Usage: bash-calc-eval [OPTIONS] [EXPRESSION]
+#
+# Options:
+#   -h, --help     Show this help message
+#   -f             Float division mode (default)
+#   -i             Integer division mode
+#   -p N           Precision (decimal places, default 6, only with -f)
+#
+# If EXPRESSION is not provided, reads from stdin.
+# Supports: +, -, *, /, ^ (power), % (modulo)
+# Bitwise (integers only): &, |, ~, <<, >>
+# Use 'xor' keyword for XOR operations
+#
+# Examples:
+#   bash-calc-eval '4+7'
+#   bash-calc-eval -i '100/3'
+#   bash-calc-eval -p 2 '100/3'
+#   echo '4+7' | bash-calc-eval
+#######################################
+
+readonly SCRIPT_NAME="$(basename "$0")"
+
+#######################################
+# Print error message and exit
+#######################################
+die() {
+    echo "ERROR: $*" >&2
+    exit 1
+}
+
+#######################################
+# Print usage information
+#######################################
+usage() {
+    cat >&2 <<'EOF'
+Usage: bash-calc-eval [OPTIONS] [EXPRESSION]
+
+Options:
+  -h, --help       Show help
+  -f               Float division (default)
+  -i               Integer division
+  -p N             Precision in decimal places (default 6, float mode only)
+
+If EXPRESSION is not provided, reads from stdin.
+
+Examples:
+  bash-calc-eval '4+7'
+  bash-calc-eval -i '100/3'
+  bash-calc-eval -p 2 '100/3'
+  echo '4+7' | bash-calc-eval
+EOF
+}
+
+#######################################
+# Check if expression contains bitwise operators
+# Returns 0 if bitwise operators found, 1 otherwise
+#######################################
+has_bitwise_ops() {
+    local expr="$1"
+
+    # Check for bitwise operators: &, |, ~, <<, >>, xor
+    [[ "$expr" =~ (\&|\||\~|xor|<<|>>) ]]
+}
+
+#######################################
+# Preprocess hex and binary literals
+# Converts 0xHH to decimal and 0bBBBB to decimal
+#######################################
+preprocess_literals() {
+    local expr="$1"
+
+    # Convert hex literals (0x...) to decimal
+    while [[ "$expr" =~ 0x[0-9a-fA-F]+ ]]; do
+        local hex_match="${BASH_REMATCH[0]}"
+        local decimal=$((hex_match))
+        expr="${expr//$hex_match/$decimal}"
+    done
+
+    # Convert binary literals (0b...) to decimal
+    while [[ "$expr" =~ 0b[01]+ ]]; do
+        local bin_match="${BASH_REMATCH[0]}"
+        local bin_digits="${bin_match:2}"  # Remove "0b" prefix
+        local decimal
+        # Use bash arithmetic with base 2 notation
+        decimal=$(( 2#${bin_digits} )) || die "Invalid binary literal: $bin_match"
+        expr="${expr//$bin_match/$decimal}"
+    done
+
+    echo "$expr"
+}
+
+#######################################
+# Evaluate using bc (float mode)
+# Arguments:
+#   $1 - expression
+#   $2 - precision (default 6)
+#   $3 - whether precision was explicitly set (0 or 1)
+#######################################
+evaluate_bc() {
+    local expr="$1"
+    local precision="${2:-6}"
+    local precision_explicit="${3:-0}"
+
+    # Check if expression has xor keyword (bitwise)
+    if [[ "$expr" =~ xor ]]; then
+        die "Float mode (-f) does not support bitwise operations"
+    fi
+
+    # Check for bitwise operators
+    if has_bitwise_ops "$expr"; then
+        die "Float mode (-f) does not support bitwise operations"
+    fi
+
+    # Check for modulo operator - modulo is fundamentally integer, so evaluate differently
+    if [[ "$expr" =~ % ]]; then
+        # Modulo operation: need to handle specially
+        # Strategy: evaluate with scale=0 to get integer modulo
+        local result
+        result=$(echo "scale=0; $expr" | bc -l 2>&1) || die "Calculation error: division by zero or invalid expression"
+        echo "$result"
+        return 0
+    fi
+
+    # In bc, ^ is the power operator (which is what we want)
+    # Set scale for decimal precision
+    local result
+    result=$(echo "scale=$precision; $expr" | bc -l 2>&1) || die "Calculation error: division by zero or invalid expression"
+
+    # Only format with printf if precision was explicitly set with -p
+    if [[ $precision_explicit -eq 1 ]]; then
+        # Force format to have exactly 'precision' decimal places
+        if [[ "$precision" -eq 0 ]]; then
+            # For precision 0, just print the integer part
+            printf "%.0f\n" "$result"
+        else
+            # For precision > 0, ensure we have exactly that many decimal places
+            printf "%.${precision}f\n" "$result"
+        fi
+    else
+        # Otherwise, output bc's result, but clean up formatting
+        # If result is a whole number (no decimal point or .0000...), output as integer
+        if [[ "$result" =~ ^-?[0-9]+(\.[0]+)?$ ]]; then
+            # It's a whole number, output without decimals
+            printf "%.0f\n" "$result"
+        else
+            # It has non-zero decimal places, output as-is
+            echo "$result"
+        fi
+    fi
+}
+
+#######################################
+# Evaluate using bash arithmetic (integer mode)
+#######################################
+evaluate_bash() {
+    local expr="$1"
+
+    # In bash $(( )), we need:
+    # - Convert ^ (power) to ** (exponentiation operator in bash)
+    # - Convert xor keyword to ^ (bash's bitwise XOR operator)
+
+    # First, replace ^ with ** for power operator
+    expr="${expr//\^/\*\*}"
+
+    # Then replace xor keyword with ^ for bitwise XOR
+    expr="${expr//xor/^}"
+
+    # Evaluate with bash arithmetic
+    local result
+    if result=$(( $expr )); then
+        echo "$result"
+    else
+        die "Invalid expression or calculation error"
+    fi
+}
+
+#######################################
+# Main function
+#######################################
+main() {
+    local float_mode=1
+    local precision=6
+    local precision_explicit=0
+    local expression=""
+    local args=()
+
+    # Collect all arguments
+    args=("$@")
+
+    # Parse arguments - need to handle flags mixed with expression
+    # Be careful: expressions starting with - (negative numbers) should not be treated as options
+    local i=0
+    while [[ $i -lt ${#args[@]} ]]; do
+        local arg="${args[$i]}"
+
+        # Check if this is a known option
+        if [[ "$arg" == "-h" ]] || [[ "$arg" == "--help" ]]; then
+            usage
+            exit 0
+        elif [[ "$arg" == "-f" ]]; then
+            float_mode=1
+            ((i++))
+        elif [[ "$arg" == "-i" ]]; then
+            float_mode=0
+            ((i++))
+        elif [[ "$arg" == "-p" ]]; then
+            if [[ $((i + 1)) -ge ${#args[@]} ]]; then
+                die "Option -p requires an argument"
+            fi
+            precision="${args[$((i + 1))]}"
+            precision_explicit=1
+            ((i += 2))
+        elif [[ "$arg" == -* ]] && ! [[ "$arg" =~ ^-[0-9] ]]; then
+            # It's an option (starts with - but not a negative number)
+            die "Unknown option: $arg"
+        else
+            # First non-flag argument is the expression
+            expression="$arg"
+            ((i++))
+            # Continue parsing remaining args for flags
+            while [[ $i -lt ${#args[@]} ]]; do
+                local arg2="${args[$i]}"
+                if [[ "$arg2" == "-f" ]]; then
+                    float_mode=1
+                    ((i++))
+                elif [[ "$arg2" == "-i" ]]; then
+                    float_mode=0
+                    ((i++))
+                elif [[ "$arg2" == "-p" ]]; then
+                    if [[ $((i + 1)) -ge ${#args[@]} ]]; then
+                        die "Option -p requires an argument"
+                    fi
+                    precision="${args[$((i + 1))]}"
+                    precision_explicit=1
+                    ((i += 2))
+                else
+                    die "Extra argument: $arg2"
+                fi
+            done
+            break
+        fi
+    done
+
+    # If no expression from args, read from stdin
+    if [[ -z "$expression" ]]; then
+        if ! read -r expression; then
+            usage
+            exit 1
+        fi
+    fi
+
+    # Validate expression is not empty
+    if [[ -z "$expression" ]] || [[ "$expression" =~ ^[[:space:]]*$ ]]; then
+        die "Empty expression"
+    fi
+
+    # Preprocess hex and binary literals
+    expression=$(preprocess_literals "$expression")
+
+    # Check if expression has bitwise operations before evaluation
+    local has_bitwise=0
+    if has_bitwise_ops "$expression"; then
+        has_bitwise=1
+    fi
+
+    # Auto-detect integer mode for bitwise operations, unless -f was explicit
+    # If -f is not explicitly set and bitwise found, use integer mode
+    if [[ $has_bitwise -eq 1 ]]; then
+        # Check if -f was explicitly used
+        local float_explicit=0
+        local i=0
+        local args=("$@")
+        while [[ $i -lt ${#args[@]} ]]; do
+            if [[ "${args[$i]}" == "-f" ]]; then
+                float_explicit=1
+                break
+            fi
+            ((i++))
+        done
+
+        if [[ $float_explicit -eq 1 ]]; then
+            die "Float mode (-f) does not support bitwise operations"
+        else
+            # Auto-switch to integer mode for bitwise
+            float_mode=0
+        fi
+    fi
+
+    # Check for -p with -i (should error)
+    if [[ $float_mode -eq 0 ]] && [[ $precision_explicit -eq 1 ]]; then
+        die "Precision (-p) is only valid with float mode (-f), not integer mode (-i)"
+    fi
+
+    # Evaluate expression
+    local result
+    if [[ $float_mode -eq 1 ]]; then
+        result=$(evaluate_bc "$expression" "$precision" "$precision_explicit")
+    else
+        result=$(evaluate_bash "$expression")
+    fi
+
+    echo "$result"
+}
+
+# Only run main if not being sourced
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi

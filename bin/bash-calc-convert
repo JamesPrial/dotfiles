@@ -1,0 +1,224 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+
+#######################################
+# bash-calc-convert - Convert between number bases
+#
+# Usage: bash-calc-convert [FLAGS] [VALUE]
+#
+# Convert numbers between decimal, hexadecimal, binary, and octal.
+#
+# INPUT FLAGS (force input interpretation):
+#   -D              Force decimal input
+#   -X              Force hexadecimal input
+#   -B              Force binary input
+#   -O              Force octal input
+#
+# OUTPUT FLAGS (control output format, default is decimal):
+#   -d              Output as decimal
+#   -x              Output as hexadecimal
+#   -b              Output as binary
+#   -o              Output as octal
+#   -a              Output all formats (tab-separated)
+#
+# OTHER:
+#   -h              Show help and exit
+#
+# VALUE:
+#   Positional argument or read from stdin if omitted.
+#   Auto-detection: 0x prefix = hex, 0b = binary, 0o = octal, else decimal.
+#######################################
+
+die() { echo "ERROR: $*" >&2; exit 1; }
+
+show_help() {
+    cat <<'EOF'
+Usage: bash-calc-convert [FLAGS] [VALUE]
+
+Convert numbers between decimal, hexadecimal, binary, and octal bases.
+
+INPUT FLAGS:
+  -D              Force decimal input
+  -X              Force hexadecimal input
+  -B              Force binary input
+  -O              Force octal input
+
+OUTPUT FLAGS:
+  -d              Output as decimal (default)
+  -x              Output as hexadecimal
+  -b              Output as binary
+  -o              Output as octal
+  -a              Output all formats (tab-separated)
+
+OTHER:
+  -h              Show this help
+
+VALUE:
+  Positional argument or read from stdin if omitted.
+  Auto-detection: 0x = hex, 0b = binary, 0o = octal, else decimal.
+
+EXAMPLES:
+  bash-calc-convert 255 -x          # decimal to hex
+  bash-calc-convert 0xff -d         # hex to decimal
+  echo 255 | bash-calc-convert -x   # from stdin
+  bash-calc-convert 255 -a          # all formats
+EOF
+}
+
+#######################################
+# Convert decimal to binary
+# Globals: None
+# Arguments:
+#   $1 - decimal number
+# Outputs:
+#   Binary representation
+#######################################
+to_binary() {
+    local num=$1
+    if [[ $num -eq 0 ]]; then
+        echo "0"
+        return
+    fi
+
+    local binary=""
+    while [[ $num -gt 0 ]]; do
+        binary="$((num % 2))${binary}"
+        num=$((num / 2))
+    done
+    echo "$binary"
+}
+
+#######################################
+# Main program
+#######################################
+main() {
+    local output_format="d"
+    local input_format=""
+    local value=""
+    declare -a args
+
+    # Parse all arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h)
+                show_help
+                exit 0
+                ;;
+            -d)
+                output_format="d"
+                ;;
+            -x)
+                output_format="x"
+                ;;
+            -b)
+                output_format="b"
+                ;;
+            -o)
+                output_format="o"
+                ;;
+            -a)
+                output_format="a"
+                ;;
+            -D)
+                input_format="D"
+                ;;
+            -X)
+                input_format="X"
+                ;;
+            -B)
+                input_format="B"
+                ;;
+            -O)
+                input_format="O"
+                ;;
+            *)
+                # Collect non-flag arguments
+                args+=("$1")
+                ;;
+        esac
+        shift
+    done
+
+    # Get value from args or stdin
+    if [[ ${#args[@]} -gt 0 ]]; then
+        value="${args[0]}"
+    else
+        # Try to read from stdin
+        if ! read -r value 2>/dev/null; then
+            echo "Usage: bash-calc-convert [FLAGS] [VALUE]"
+            exit 1
+        fi
+    fi
+
+    # Trim whitespace from value
+    value="${value//[[:space:]]/}"
+
+    # Validate non-empty value
+    [[ -n "$value" ]] || die "No input value provided"
+
+    # Parse input and convert to decimal
+    local decimal_value=0
+
+    if [[ "$input_format" == "D" ]]; then
+        # Force decimal
+        decimal_value=$((10#$value)) 2>/dev/null || die "Invalid decimal input: $value"
+    elif [[ "$input_format" == "X" ]]; then
+        # Force hex (case-insensitive)
+        local hex_lower
+        hex_lower=$(echo "$value" | tr '[:upper:]' '[:lower:]')
+        decimal_value=$((16#$hex_lower)) 2>/dev/null || die "Invalid hexadecimal input: $value"
+    elif [[ "$input_format" == "B" ]]; then
+        # Force binary
+        decimal_value=$((2#$value)) 2>/dev/null || die "Invalid binary input: $value"
+    elif [[ "$input_format" == "O" ]]; then
+        # Force octal
+        decimal_value=$((8#$value)) 2>/dev/null || die "Invalid octal input: $value"
+    else
+        # Auto-detect input format
+        if [[ "$value" =~ ^0[xX] ]]; then
+            # Hexadecimal
+            local hex_digits="${value:2}"
+            local hex_lower
+            hex_lower=$(echo "$hex_digits" | tr '[:upper:]' '[:lower:]')
+            decimal_value=$((16#$hex_lower)) 2>/dev/null || die "Invalid hexadecimal input: $value"
+        elif [[ "$value" =~ ^0[bB] ]]; then
+            # Binary
+            decimal_value=$((2#${value:2})) 2>/dev/null || die "Invalid binary input: $value"
+        elif [[ "$value" =~ ^0[oO] ]]; then
+            # Octal
+            decimal_value=$((8#${value:2})) 2>/dev/null || die "Invalid octal input: $value"
+        else
+            # Default to decimal
+            decimal_value=$((10#$value)) 2>/dev/null || die "Invalid decimal input: $value"
+        fi
+    fi
+
+    # Convert to requested output format
+    case "$output_format" in
+        d)
+            echo "$decimal_value"
+            ;;
+        x)
+            printf "%x\n" "$decimal_value"
+            ;;
+        b)
+            to_binary "$decimal_value"
+            ;;
+        o)
+            printf "%o\n" "$decimal_value"
+            ;;
+        a)
+            # All formats tab-separated
+            local hex_val
+            hex_val=$(printf "%x" "$decimal_value")
+            local binary_val
+            binary_val=$(to_binary "$decimal_value")
+            local octal_val
+            octal_val=$(printf "%o" "$decimal_value")
+            printf "%d\t%s\t%s\t%s\n" "$decimal_value" "$hex_val" "$binary_val" "$octal_val"
+            ;;
+    esac
+}
+
+main "$@"

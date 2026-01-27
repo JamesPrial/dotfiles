@@ -1,0 +1,423 @@
+#!/usr/bin/env bash
+set -euo pipefail
+IFS=$'\n\t'
+
+#######################################
+# Orchestrator for bash-calc-eval and bash-calc-convert
+#
+# Intelligently routes between evaluation and conversion based on:
+# - Whether input is a plain number or expression
+# - What flags are provided
+#
+# Usage: bash-calc [OPTIONS] [EXPRESSION]
+#
+# EVAL FLAGS (passed to bash-calc-eval):
+#   -f               Float division (default)
+#   -i               Integer division
+#   -p N             Precision (default 6, float mode only)
+#
+# INPUT FLAGS (passed to both eval and convert):
+#   -D               Force decimal input
+#   -X               Force hexadecimal input
+#   -B               Force binary input
+#   -O               Force octal input
+#
+# OUTPUT FLAGS (passed to bash-calc-convert):
+#   -d               Output as decimal
+#   -x               Output as hexadecimal
+#   -b               Output as binary
+#   -o               Output as octal
+#   -a               Output all formats (tab-separated)
+#
+# OTHER:
+#   -h               Show this help
+#
+# If EXPRESSION is not provided, reads from stdin.
+#
+# FLOW:
+# 1. Parse all flags
+# 2. If plain number + output flag: convert only (skip eval)
+# 3. If expression + output flag: eval, then convert
+# 4. Otherwise: eval only
+#
+# Examples:
+#   bash-calc '4+7'              # Evaluate: 11
+#   bash-calc -x 255             # Convert only: ff
+#   bash-calc -x '255 & 0xf0'    # Evaluate then convert: f0
+#   bash-calc -i -x '100/3'      # Integer mode then hex: 21
+#######################################
+
+readonly SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_NAME="$(basename "$0")"
+
+#######################################
+# Print error message to stderr and exit
+#######################################
+die() {
+    echo "ERROR: $*" >&2
+    exit 1
+}
+
+#######################################
+# Show help information
+#######################################
+show_help() {
+    cat >&2 <<'EOF'
+Usage: bash-calc [OPTIONS] [EXPRESSION]
+
+The orchestrator for bash-calc-eval and bash-calc-convert.
+
+EVAL FLAGS (passed to bash-calc-eval):
+  -f               Float division (default)
+  -i               Integer division
+  -p N             Precision (default 6, float mode only)
+
+INPUT FLAGS (passed to both eval and convert):
+  -D               Force decimal input
+  -X               Force hexadecimal input
+  -B               Force binary input
+  -O               Force octal input
+
+OUTPUT FLAGS (passed to bash-calc-convert):
+  -d               Output as decimal
+  -x               Output as hexadecimal
+  -b               Output as binary
+  -o               Output as octal
+  -a               Output all formats (tab-separated)
+
+OTHER:
+  -h               Show this help
+
+If EXPRESSION is not provided, reads from stdin.
+
+FLOW:
+1. If plain number + output flag: convert only (skip eval)
+2. If expression + output flag: evaluate, then convert
+3. Otherwise: evaluate only
+
+EXAMPLES:
+  bash-calc '4+7'                    # Evaluate: 11
+  bash-calc -x 255                   # Convert decimal to hex: ff
+  bash-calc -x '255 & 0xf0'          # Evaluate then convert: f0
+  bash-calc -i -x '100/3'            # Integer mode then hex: 21
+  bash-calc -a '2^8'                 # All formats: 256, 100, 100000000, 400
+  echo '4+7' | bash-calc             # From stdin: 11
+  echo 255 | bash-calc -x            # Convert from stdin: ff
+EOF
+}
+
+#######################################
+# Preprocess expression based on input format flag
+#
+# When input flags (-X, -B, -O) are used, converts bareword numbers
+# to the appropriate literal form so bash-calc-eval can understand them.
+#
+# Arguments:
+#   $1 - expression
+#   $2 - input format (X=hex, B=binary, O=octal, or empty for default)
+# Outputs:
+#   Preprocessed expression
+#######################################
+preprocess_expression_for_input_format() {
+    local expr="$1"
+    local format="${2:-}"
+    local result=""
+    local i=0
+
+    case "$format" in
+        X)
+            # Force hex: add 0x prefix to bareword hex numbers
+            # Parse character by character to handle proper boundaries
+            while [[ $i -lt ${#expr} ]]; do
+                local char="${expr:$i:1}"
+                # Check if this is start of a hex number
+                if [[ "$char" =~ [0-9a-fA-F] ]]; then
+                    # Check if previous character is NOT a hex digit or 'x' (avoid modifying 0xAB)
+                    local prev_char=""
+                    if [[ $i -gt 0 ]]; then
+                        prev_char="${expr:$((i-1)):1}"
+                    fi
+                    # If not preceded by hex digit or x, add 0x prefix
+                    if [[ -z "$prev_char" ]] || [[ ! "$prev_char" =~ [0-9a-fA-Fx] ]]; then
+                        result+="0x"
+                    fi
+                fi
+                result+="$char"
+                ((i++))
+            done
+            expr="$result"
+            ;;
+        B)
+            # Force binary: add 0b prefix to bareword binary numbers (0-1)
+            result=""
+            i=0
+            while [[ $i -lt ${#expr} ]]; do
+                local char="${expr:$i:1}"
+                if [[ "$char" =~ [01] ]]; then
+                    local prev_char=""
+                    if [[ $i -gt 0 ]]; then
+                        prev_char="${expr:$((i-1)):1}"
+                    fi
+                    if [[ -z "$prev_char" ]] || [[ ! "$prev_char" =~ [01b] ]]; then
+                        result+="0b"
+                    fi
+                fi
+                result+="$char"
+                ((i++))
+            done
+            expr="$result"
+            ;;
+        O)
+            # Force octal: add 0o prefix to bareword octal numbers (0-7)
+            result=""
+            i=0
+            while [[ $i -lt ${#expr} ]]; do
+                local char="${expr:$i:1}"
+                if [[ "$char" =~ [0-7] ]]; then
+                    local prev_char=""
+                    if [[ $i -gt 0 ]]; then
+                        prev_char="${expr:$((i-1)):1}"
+                    fi
+                    if [[ -z "$prev_char" ]] || [[ ! "$prev_char" =~ [0-7o] ]]; then
+                        result+="0o"
+                    fi
+                fi
+                result+="$char"
+                ((i++))
+            done
+            expr="$result"
+            ;;
+    esac
+
+    echo "$expr"
+}
+
+#######################################
+# Detect if input is a plain number (no operators or expressions)
+#
+# A plain number contains only:
+# - digits (0-9)
+# - optional base prefixes (0x, 0b, 0o)
+# - optional unary minus at start
+# - whitespace (which is trimmed)
+#
+# Not a plain number if it contains operators:
+# +, -, *, /, %, ^, &, |, ~, (, ), <<, >>, xor
+#
+# Arguments:
+#   $1 - value to test
+# Returns:
+#   0 if plain number, 1 otherwise
+#######################################
+is_plain_number() {
+    local value="$1"
+
+    # Trim whitespace
+    value="${value//[[:space:]]/}"
+
+    # Check for operator characters that indicate an expression
+
+    # Addition operator
+    [[ "$value" =~ [+] ]] && return 1
+
+    # Multiplication, division, modulo, power
+    [[ "$value" =~ [\*/%^] ]] && return 1
+
+    # Bitwise OR
+    [[ "$value" =~ \| ]] && return 1
+
+    # Bitwise NOT (tilde)
+    [[ "$value" =~ ~ ]] && return 1
+
+    # Parentheses
+    [[ "$value" =~ \(|\) ]] && return 1
+
+    # XOR keyword
+    [[ "$value" =~ xor ]] && return 1
+
+    # Shift operators
+    [[ "$value" =~ (<<|>>) ]] && return 1
+
+    # Subtraction (minus operator, not unary minus at start)
+    # Check if minus appears anywhere after position 0
+    if [[ "${value:1}" =~ - ]]; then
+        return 1
+    fi
+
+    # Bitwise AND
+    [[ "$value" =~ \& ]] && return 1
+
+    # All checks passed - it's a plain number
+    return 0
+}
+
+#######################################
+# Main function
+#######################################
+main() {
+    local eval_flags=()
+    local input_flags=()
+    local output_flags=()
+    local expression=""
+
+    # Parse all command-line arguments
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            -h|--help)
+                show_help
+                exit 0
+                ;;
+            # Eval flags
+            -f)
+                eval_flags+=("-f")
+                shift
+                ;;
+            -i)
+                eval_flags+=("-i")
+                shift
+                ;;
+            -p)
+                if [[ $# -lt 2 ]]; then
+                    die "Option -p requires an argument"
+                fi
+                eval_flags+=("-p" "$2")
+                shift 2
+                ;;
+            # Input flags
+            -D)
+                input_flags+=("-D")
+                shift
+                ;;
+            -X)
+                input_flags+=("-X")
+                shift
+                ;;
+            -B)
+                input_flags+=("-B")
+                shift
+                ;;
+            -O)
+                input_flags+=("-O")
+                shift
+                ;;
+            # Output flags
+            -d)
+                output_flags+=("-d")
+                shift
+                ;;
+            -x)
+                output_flags+=("-x")
+                shift
+                ;;
+            -b)
+                output_flags+=("-b")
+                shift
+                ;;
+            -o)
+                output_flags+=("-o")
+                shift
+                ;;
+            -a)
+                output_flags+=("-a")
+                shift
+                ;;
+            *)
+                # First non-flag argument is the expression
+                expression="$1"
+                shift
+
+                # Continue parsing remaining arguments for flags
+                while [[ $# -gt 0 ]]; do
+                    case "$1" in
+                        -f|-i)
+                            eval_flags+=("$1")
+                            shift
+                            ;;
+                        -p)
+                            if [[ $# -lt 2 ]]; then
+                                die "Option -p requires an argument"
+                            fi
+                            eval_flags+=("-p" "$2")
+                            shift 2
+                            ;;
+                        -D|-X|-B|-O)
+                            input_flags+=("$1")
+                            shift
+                            ;;
+                        -d|-x|-b|-o|-a)
+                            output_flags+=("$1")
+                            shift
+                            ;;
+                        *)
+                            die "Unexpected argument: $1"
+                            ;;
+                    esac
+                done
+                break
+                ;;
+        esac
+    done
+
+    # If no expression from command line, try to read from stdin
+    if [[ -z "$expression" ]]; then
+        if ! read -r expression; then
+            show_help
+            exit 1
+        fi
+    fi
+
+    # Validate that expression is not empty
+    if [[ -z "$expression" ]] || [[ "$expression" =~ ^[[:space:]]*$ ]]; then
+        die "Empty expression"
+    fi
+
+    # Preprocess expression if we have input flags (for eval path)
+    local eval_expression="$expression"
+    if [[ ${#input_flags[@]} -gt 0 ]]; then
+        # Extract the format from input flags
+        local input_format=""
+        for flag in "${input_flags[@]}"; do
+            case "$flag" in
+                -X) input_format="X" ;;
+                -B) input_format="B" ;;
+                -O) input_format="O" ;;
+                -D) input_format="D" ;;
+            esac
+        done
+        # Preprocess only if we need to interpret bareword numbers
+        if [[ -n "$input_format" ]] && [[ "$input_format" != "D" ]]; then
+            eval_expression=$(preprocess_expression_for_input_format "$expression" "$input_format")
+        fi
+    fi
+
+    # Route based on whether input is plain number and whether output flag is present
+    if is_plain_number "$expression" && [[ ${#output_flags[@]} -gt 0 ]]; then
+        # Smart routing: plain number with output flag
+        # Skip eval, convert directly
+        "${SCRIPT_DIR}/bash-calc-convert" \
+            ${input_flags[@]+"${input_flags[@]}"} \
+            ${output_flags[@]+"${output_flags[@]}"} \
+            "$expression"
+    elif [[ ${#output_flags[@]} -gt 0 ]]; then
+        # Expression with output flag
+        # Evaluate first (with preprocessed expression), then convert result
+        local eval_result
+        eval_result=$("${SCRIPT_DIR}/bash-calc-eval" \
+            ${eval_flags[@]+"${eval_flags[@]}"} \
+            "$eval_expression") || die "Evaluation failed"
+
+        "${SCRIPT_DIR}/bash-calc-convert" \
+            ${output_flags[@]+"${output_flags[@]}"} \
+            "$eval_result"
+    else
+        # No output flag: evaluate only (with preprocessed expression)
+        "${SCRIPT_DIR}/bash-calc-eval" \
+            ${eval_flags[@]+"${eval_flags[@]}"} \
+            "$eval_expression"
+    fi
+}
+
+# Only run main if script is being executed (not sourced)
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+    main "$@"
+fi
