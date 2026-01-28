@@ -8,17 +8,27 @@ if [ ! -d "$DF" ]; then
     DF="$(cd "$(dirname "$0")/.." && pwd)"
 fi
 
+# Helper to chmod only if file/dir exists
+safe_chmod() {
+    mode="$1"
+    shift
+    for path in "$@"; do
+        [ -e "$path" ] && chmod "$mode" "$path"
+    done
+}
+
 # Directories: 700
-chmod 700 "$DF" "$DF/ssh" "$DF/bin" "$DF/bin/tests" "$DF/claudescripts" 2>/dev/null
+safe_chmod 700 "$DF" "$DF/ssh" "$DF/bin" "$DF/bin/tests" "$DF/claudescripts"
 
 # Scripts: 700
-chmod 700 "$DF/bin/dotfiles-install" "$DF/bin/dotfiles-sync" "$DF/bin/dotfiles-fix-perms" 2>/dev/null
-chmod 700 "$DF/bin/actions-fails" "$DF/bin/actions-status" 2>/dev/null
-chmod 700 "$DF/bin/bash-calc" "$DF/bin/bash-calc-eval" "$DF/bin/bash-calc-convert" 2>/dev/null
-chmod 700 "$DF/bin/tests/test-actions-fails.bats" "$DF/bin/tests/test-actions-status.bats" 2>/dev/null
-chmod 700 "$DF/bin/tests/test-bash-calc.bats" "$DF/bin/tests/test-bash-calc-eval.bats" "$DF/bin/tests/test-bash-calc-convert.bats" 2>/dev/null
-chmod 700 "$DF/claudescripts/push" "$DF/claudescripts/ghcli" "$DF/claudescripts/support" 2>/dev/null
-chmod 600 "$DF/claudescripts/profile" "$DF/bin/repos.yaml" 2>/dev/null
+safe_chmod 700 "$DF/bin/dotfiles-install" "$DF/bin/dotfiles-sync" "$DF/bin/dotfiles-fix-perms"
+safe_chmod 700 "$DF/bin/actions-fails" "$DF/bin/actions-status"
+safe_chmod 700 "$DF/bin/bash-calc" "$DF/bin/bash-calc-eval" "$DF/bin/bash-calc-convert"
+safe_chmod 700 "$DF/bin/git-new-branch" "$DF/bin/git-fetch-all"
+safe_chmod 700 "$DF/bin/tests/test-actions-fails.bats" "$DF/bin/tests/test-actions-status.bats"
+safe_chmod 700 "$DF/bin/tests/test-bash-calc.bats" "$DF/bin/tests/test-bash-calc-eval.bats" "$DF/bin/tests/test-bash-calc-convert.bats"
+safe_chmod 700 "$DF/claudescripts/push" "$DF/claudescripts/ghcli" "$DF/claudescripts/support" "$DF/claudescripts/askclaude"
+safe_chmod 600 "$DF/claudescripts/profile" "$DF/bin/repos.yaml"
 
 # Config files: 600
 chmod 600 "$DF/zshrc" "$DF/bash_aliases" "$DF/sh_functions" 2>/dev/null

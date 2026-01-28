@@ -48,12 +48,35 @@ All files use owner-only permissions (700 for dirs/scripts, 600 for configs). Gi
 - JSON parsing fallback: `sed` (not `grep -oP` - unavailable on macOS)
 - Use `uname -s` for OS detection, not `/etc/os-release` alone
 
-## Development
+## Testing
 
-Scripts are in `bin/`:
-- `bin/dotfiles-install` - Idempotent bootstrap (safe to re-run)
-- `bin/dotfiles-sync` - Pulls latest and fixes permissions
-- `bin/dotfiles-fix-perms` - Sets 700 for dirs/scripts, 600 for configs
+```bash
+# Run all bats tests
+bats bin/tests/
+
+# Run specific test file
+bats bin/tests/test-actions-fails.bats
+
+# Reload shell config (manual testing)
+source ~/.zshrc
+```
+
+CI runs on both macOS and Linux via GitHub Actions (`.github/workflows/test.yml`).
+
+## Scripts
+
+Core scripts in `bin/`:
+- `dotfiles-install` - Idempotent bootstrap (safe to re-run)
+- `dotfiles-sync` - Pulls latest and fixes permissions
+- `dotfiles-fix-perms` - Sets 700 for dirs/scripts, 600 for configs
+- `actions-fails` - Check workspace repos for GitHub Actions failures (alias: `af`)
+- `bash-calc` - Programmer's calculator with `ceval` (expressions) and `cconv` (base conversion)
+
+Claude Code wrappers in `claudescripts/` (symlinked to `~/.claudescripts`):
+- `push` - Quick commit/push (Haiku)
+- `ghcli` - GitHub CLI operations (Sonnet)
+- `support` - Bash debugging with web search (Opus)
+- `askclaude` - Quick bash Q&A (Haiku)
 
 ## Claude Code Configuration
 

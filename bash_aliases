@@ -28,8 +28,8 @@ alias af="$HOME/.dotfiles/bin/actions-fails"
 # Dotfiles installer
 alias di="$HOME/.dotfiles/bin/dotfiles-install"
 
-# git switch -c "$2" main
-alias gnb="$HOME/.dotfiles/git-new-branch"
+# git switch -c <branch> main
+alias gnb="$HOME/.dotfiles/bin/git-new-branch"
 
 # Programmer's calculator suite
 alias calc="$HOME/.dotfiles/bin/bash-calc"

@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Dotfiles Bootstrap Script
 # Usage: curl -fsSL https://raw.githubusercontent.com/JamesPrial/dotfiles/main/bin/dotfiles-install | sh
 #
@@ -76,7 +76,7 @@ create_symlink() {
     dest="$2"
 
     # If symlink already points to correct location, skip
-    if [ -L "$dest" ] && [ "$(readlink "$dest")" = "$src" ]; then
+    if [ -L "$dest" ] && [ "$(cd "$dest" 2>/dev/null && pwd -P)" = "$(cd "$src" 2>/dev/null && pwd -P)" ]; then
         log_success "Symlink already exists: $dest -> $src"
         return 0
     fi
@@ -405,7 +405,7 @@ clone_repo() {
 # Migrate old symlink structure if needed
 migrate_old_symlink() {
     if [ -L "$HOME/.dotfiles" ]; then
-        current_target="$(readlink "$HOME/.dotfiles")"
+        current_target="$(cd "$HOME/.dotfiles" && pwd -P)"
         # Check if pointing to old .dotfiles subdirectory
         if [ "${current_target##*/}" = ".dotfiles" ]; then
             log_info "Migrating old symlink structure..."
@@ -489,11 +489,12 @@ EOF
 
     cat > "$hooks_dir/pre-push" << 'EOF'
 #!/bin/sh
+set -e
 # Resolve actual repo location from symlink
-DOTFILES_DIR="$(readlink -f "$HOME/.dotfiles")"
+DOTFILES_DIR="$(cd "$HOME/.dotfiles" && pwd -P)"
 cd "$DOTFILES_DIR" || exit 1
 git pull --ff-only origin main 2>/dev/null || exit 1
-"$HOME/.dotfiles/bin/dotfiles-fix-perms"
+"$HOME/.dotfiles/bin/dotfiles-fix-perms" || true
 EOF
     chmod +x "$hooks_dir/pre-push"
 

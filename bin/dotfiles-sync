@@ -2,7 +2,7 @@
 # Sync dotfiles from GitHub and fix permissions
 
 if [ -L "$HOME/.dotfiles" ]; then
-    DOTFILES_DIR="$(readlink -f "$HOME/.dotfiles")"
+    DOTFILES_DIR="$(cd "$HOME/.dotfiles" && pwd -P)"
 else
     DOTFILES_DIR="${DOTFILES_DIR:-$HOME/dotfiles}"
 fi

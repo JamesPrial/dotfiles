@@ -12,5 +12,10 @@ function cdir {
 }
 
 function jc {
-  	
+	# JSON colorizer/prettifier - uses jq if available, falls back to cat
+	if command -v jq &>/dev/null; then
+		jq . 2>/dev/null || cat
+	else
+		cat
+	fi
 }

@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# git-fetch-all - Fetch updates from all remotes in all git repos
+set -euo pipefail
+
+# Find all git repos under ~/code and fetch
+for dir in "$HOME/code"/*/.git; do
+    repo_dir="${dir%/.git}"
+    if [[ -d "$repo_dir" ]]; then
+        (cd "$repo_dir" && git fetch --all --quiet 2>/dev/null) || true
+    fi
+done

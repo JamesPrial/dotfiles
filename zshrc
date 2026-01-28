@@ -1,7 +1,7 @@
 # Set path if required
 export PATH="$GOPATH/bin:/usr/local/go/bin:$PATH"
 
-export PATH="$HOME/.nvm/versions/node/v25.4.0/bin:$PATH"
+# Node path managed by nvm - dynamically added below
 
 export PATH="$HOME/.local/bin:$PATH"
 
@@ -75,7 +75,7 @@ export NVM_DIR="$HOME/.nvm"
 [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
 
 # Auto-fetch git repos silently in background on new terminal
-(git-fetch-all &) >/dev/null 2>&1
+("$HOME/.dotfiles/bin/git-fetch-all" &) >/dev/null 2>&1
 
 # Check for git updates on demand
-alias gfu='git-fetch-all'
+alias gfu="$HOME/.dotfiles/bin/git-fetch-all"
