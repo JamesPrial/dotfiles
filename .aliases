@@ -1,0 +1,35 @@
+alias ls='eza'
+alias ll="eza -la"
+alias tree='eza -T'
+
+alias grep='rg'
+
+alias ping='prettyping'
+
+alias sc="source ~/.zshrc"
+alias a="vim ~/.aliases"
+
+na() { echo "alias $*" >> ~/.aliases && source ~/.aliases; }
+mcd() {
+	mkdir $*
+	cd $*
+}
+
+alias pv="python3 -m venv .venv"
+alias pa="source .venv/bin/activate"
+alias p="[ ! -d .venv ] && pv; pa"
+
+alias mit="cp ~/.mit LICENSE"
+
+alias danger="claude --allow-dangerously-skip-permissions"
+alias haiku="claude --model haiku --permission-mode bypassPermissions -p"
+alias sonnet="claude --model sonnet --permission-mode bypassPermissions -p"
+alias opus="claude --model opus --permission-mode bypassPermissions -p"
+
+alias goooo="claude plugin install golang-workflow@prial-plugins --scope project"
+
+alias db="open ~/cowork/dashboard.html"
+alias plugins='cd /Users/jamesprial/code/plugins'
+
+alias pb='cd ~/code/painbonanza.com'
+alias research="~/code/research-dashboard"
